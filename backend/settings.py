@@ -25,7 +25,7 @@ SECRET_KEY = 'django-insecure-)54$1@o7v9e6d+z_uzy_613jbesz%q(-5v9n08!=m1f7bs6=*8
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ['localhost', 'pt-backend.azurewebsites.net']
+ALLOWED_HOSTS = ['127.0.0.1', 'pt-backend.azurewebsites.net']
 
 
 # Application definition
@@ -85,6 +85,13 @@ DATABASES = {
         "PASSWORD": "Bismuth-19",
         "HOST": "pt-backend-server.mysql.database.azure.com",
         "PORT": "3306",
+
+        #'ENGINE': 'django.db.backends.mysql',
+        #'NAME': 'api',
+        #"USER": "aftimos",
+        #"PASSWORD": "Bismuth-19",
+        #"HOST": "localhost",
+        #"PORT": "3306",
     }
 }
 
@@ -123,7 +130,8 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/4.2/howto/static-files/
 
-STATIC_URL = 'static/'
+STATIC_URL = '/static/'
+STATIC_ROOT = 'static'
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/4.2/ref/settings/#default-auto-field
