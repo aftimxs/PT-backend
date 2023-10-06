@@ -140,3 +140,5 @@ STATIC_ROOT = 'static'
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 CORS_ALLOW_ALL_ORIGINS = True
+
+CSRF_TRUSTED_ORIGINS = ['pt-backend.azurewebsites.net']
