@@ -80,10 +80,10 @@ WSGI_APPLICATION = 'backend.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
-        'NAME': 'api',
-        "USER": "aftimos",
+        'NAME': 'pt-backend-database',
+        "USER": "yqufmebksl",
         "PASSWORD": "Bismuth-19",
-        "HOST": "127.0.0.1",
+        "HOST": "pt-backend-server.mysql.database.azure.com",
         "PORT": "3306",
     }
 }
