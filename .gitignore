@@ -150,3 +150,11 @@ cython_debug/
 #  and can be added to the global gitignore or merged into this file.  For a more nuclear
 #  option (not recommended) you can uncomment the following to ignore the entire idea folder.
 #.idea/
+api/migrations/0001_initial.py
+api/migrations/0002_alter_downtime_id.py
+api/migrations/0003_speedloss.py
+api/migrations/0004_rename_title_scrap_reason_remove_scrap_production_and_more.py
+api/migrations/0005_alter_scrap_pieces.py
+api/migrations/0006_remove_order_products_order_product.py
+api/migrations/0007_alter_order_quantity.py
+api/migrations/0008_alter_productionline_cell.py
