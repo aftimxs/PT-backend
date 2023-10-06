@@ -19,6 +19,9 @@ from django.urls import path, include
 from rest_framework import routers
 from api import views
 
+from django.conf import settings
+from django.conf.urls.static import static
+
 router = routers.DefaultRouter()
 router.register(r'shift', views.ShiftView, 'shift')
 router.register(r'production-line', views.ProductionLineView, 'production-line')
@@ -34,4 +37,4 @@ router.register(r'speedloss', views.SpeedlossView, 'speedloss')
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('api/', include(router.urls)),
-]
+] + static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
