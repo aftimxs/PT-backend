@@ -96,3 +96,8 @@ class SpeedlossView(viewsets.ModelViewSet):
         if shift is not None:
             queryset = (queryset.filter(shift=shift))
         return queryset
+
+
+class UsersView(viewsets.ModelViewSet):
+    serializer_class = UsersSerializer
+    queryset = Users.objects.all()

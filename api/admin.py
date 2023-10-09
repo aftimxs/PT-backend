@@ -42,6 +42,10 @@ class ProductionInfoAdmin(admin.ModelAdmin):
     list_display = ('id', 'hour', 'minute', 'item_count', 'line', 'shift')
 
 
+class UsersAdmin(admin.ModelAdmin):
+    list_display = ('id', 'first_name', 'last_name', 'email', 'password')
+
+
 # Register your models here.
 admin.site.register(Shift, ShiftAdmin)
 admin.site.register(ProductionLine, ProductionLineAdmin)
@@ -53,4 +57,6 @@ admin.site.register(Scrap, ScrapAdmin)
 admin.site.register(Downtime, DowntimeAdmin)
 admin.site.register(Speedloss, SpeedlossAdmin)
 admin.site.register(ProductionInfo, ProductionInfoAdmin)
+admin.site.register(Users, UsersAdmin)
+
 

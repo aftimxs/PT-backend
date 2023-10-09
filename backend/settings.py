@@ -24,7 +24,7 @@ SECRET_KEY = 'django-insecure-)54$1@o7v9e6d+z_uzy_613jbesz%q(-5v9n08!=m1f7bs6=*8
 
 # SECURITY WARNING: don't run with debug turned on in production!
 ####
-DEBUG = False
+DEBUG = True
 
 ALLOWED_HOSTS = ['127.0.0.1', 'pt-backend.azurewebsites.net']
 
@@ -82,19 +82,19 @@ WSGI_APPLICATION = 'backend.wsgi.application'
 
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.mysql',
-        'NAME': 'pt-backend-database',
-        "USER": "yqufmebksl",
-        "PASSWORD": "Bismuth-19",
-        "HOST": "pt-backend-server.mysql.database.azure.com",
-        "PORT": "3306",
-
         #'ENGINE': 'django.db.backends.mysql',
-        #'NAME': 'api',
-        #"USER": "aftimos",
+        #'NAME': 'pt-backend-database',
+        #"USER": "yqufmebksl",
         #"PASSWORD": "Bismuth-19",
-        #"HOST": "localhost",
+        #"HOST": "pt-backend-server.mysql.database.azure.com",
         #"PORT": "3306",
+
+        'ENGINE': 'django.db.backends.mysql',
+        'NAME': 'api',
+        "USER": "aftimos",
+        "PASSWORD": "Bismuth-19",
+        "HOST": "localhost",
+        "PORT": "3306",
     }
 }
 
@@ -145,4 +145,4 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 CORS_ALLOW_ALL_ORIGINS = True
 
-CSRF_TRUSTED_ORIGINS = ['pt-backend.azurewebsites.net']
+CSRF_TRUSTED_ORIGINS = [' http://pt-backend.azurewebsites.net']

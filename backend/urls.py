@@ -33,6 +33,7 @@ router.register(r'product-info', views.ProductionInfoView, 'product-info')
 router.register(r'scrap', views.ScrapView, 'scrap')
 router.register(r'downtime', views.DowntimeView, 'downtime')
 router.register(r'speedloss', views.SpeedlossView, 'speedloss')
+router.register(r'users', views.UsersView, 'users')
 
 urlpatterns = [
     path('admin/', admin.site.urls),

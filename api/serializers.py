@@ -72,3 +72,9 @@ class ProductionLineSerializer(serializers.ModelSerializer):
     class Meta:
         model = ProductionLine
         fields = '__all__'
+
+
+class UsersSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Users
+        fields = '__all__'
