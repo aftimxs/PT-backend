@@ -100,4 +100,12 @@ class SpeedlossView(viewsets.ModelViewSet):
 
 class UsersView(viewsets.ModelViewSet):
     serializer_class = UsersSerializer
-    queryset = Users.objects.all()
+
+    def get_queryset(self):
+        queryset = Users.objects.all()
+        email = self.request.query_params.get('email')
+
+        if email is not None:
+            queryset = (queryset.filter(email=email))
+        return queryset
+
