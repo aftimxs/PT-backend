@@ -145,6 +145,6 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 CORS_ALLOW_ALL_ORIGINS = True
 
-SECURE_CROSS_ORIGIN_OPENER_POLICY = "unsafe-none"
+SECURE_CROSS_ORIGIN_OPENER_POLICY = None
 
 CSRF_TRUSTED_ORIGINS = [' http://pt-backend.azurewebsites.net']
