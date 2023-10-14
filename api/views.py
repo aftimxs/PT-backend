@@ -1,8 +1,13 @@
 from django.shortcuts import render
 from rest_framework import viewsets, status
+from rest_framework.permissions import AllowAny
+
 from .models import *
 from .serializers import *
 from django.db.models import Prefetch
+from rest_framework import generics
+from django.contrib.auth.models import User
+
 
 from rest_framework_simplejwt.views import TokenObtainPairView
 
@@ -111,3 +116,9 @@ class UsersView(viewsets.ModelViewSet):
 
 class MyTokenObtainPairView(TokenObtainPairView):
     serializer_class = MyTokenObtainPairSerializer
+
+
+class RegisterView(generics.CreateAPIView):
+    queryset = User.objects.all()
+    permission_classes = (AllowAny,)
+    serializer_class = RegisterSerializer
