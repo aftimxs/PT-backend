@@ -1,7 +1,5 @@
-import datetime
 
 from django.db import models
-from datetime import timedelta
 
 
 # Create your models here.
