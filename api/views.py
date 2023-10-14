@@ -1,11 +1,10 @@
 from django.shortcuts import render
-from rest_framework import viewsets
+from rest_framework import viewsets, status
 from .models import *
 from .serializers import *
 from django.db.models import Prefetch
-from rest_framework.decorators import action
-from rest_framework.response import Response
-from rest_framework.request import Request
+
+from rest_framework_simplejwt.views import TokenObtainPairView
 
 
 # Create your views here.
@@ -109,3 +108,6 @@ class UsersView(viewsets.ModelViewSet):
             queryset = (queryset.filter(email=email))
         return queryset
 
+
+class MyTokenObtainPairView(TokenObtainPairView):
+    serializer_class = MyTokenObtainPairSerializer
