@@ -78,12 +78,6 @@ class ProductionLineSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 
-class UsersSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Users
-        fields = '__all__'
-
-
 class MyTokenObtainPairSerializer(TokenObtainPairSerializer):
     @classmethod
     def get_token(cls, user):

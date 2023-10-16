@@ -102,18 +102,6 @@ class SpeedlossView(viewsets.ModelViewSet):
         return queryset
 
 
-class UsersView(viewsets.ModelViewSet):
-    serializer_class = UsersSerializer
-
-    def get_queryset(self):
-        queryset = Users.objects.all()
-        email = self.request.query_params.get('email')
-
-        if email is not None:
-            queryset = (queryset.filter(email=email))
-        return queryset
-
-
 class MyTokenObtainPairView(TokenObtainPairView):
     serializer_class = MyTokenObtainPairSerializer
 
@@ -122,3 +110,7 @@ class RegisterView(generics.CreateAPIView):
     queryset = User.objects.all()
     permission_classes = (AllowAny,)
     serializer_class = RegisterSerializer
+
+
+class TestView(generics.CreateAPIView):
+    serializer_class = ProductionInfoSerializer
