@@ -155,7 +155,7 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 CORS_ALLOW_ALL_ORIGINS = True
 
-CSRF_TRUSTED_ORIGINS = [' http://pt-backend.azurewebsites.net']
+CSRF_TRUSTED_ORIGINS = [' http://pt-backend.azurewebsites.net', ' https://pt-backend.azurewebsites.net']
 
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
