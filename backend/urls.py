@@ -22,6 +22,12 @@ from api import views
 from django.conf import settings
 from django.conf.urls.static import static
 
+from rest_framework_simplejwt.views import (
+    TokenRefreshView,
+)
+
+from api.views import MyTokenObtainPairView, RegisterView
+
 router = routers.DefaultRouter()
 router.register(r'shift', views.ShiftView, 'shift')
 router.register(r'production-line', views.ProductionLineView, 'production-line')
@@ -38,4 +44,7 @@ router.register(r'users', views.UsersView, 'users')
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('api/', include(router.urls)),
+    path('api/token/', MyTokenObtainPairView.as_view(), name='token_obtain_pair'),
+    path('api/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
+    path('api/register/', RegisterView.as_view(), name='register')
 ] + static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)

@@ -1,11 +1,10 @@
-import datetime
 
 from django.db import models
-from datetime import timedelta
 
 
 # Create your models here.
 class ProductionLine(models.Model):
+    id = models.CharField(primary_key=True, max_length=20)
     area = models.CharField(max_length=15)
     cell = models.IntegerField(null=True)
 
@@ -35,6 +34,7 @@ class Shift(models.Model):
         (2, 'Second')
     ]
 
+    id = models.CharField(primary_key=True, max_length=50)
     number = models.IntegerField(choices=number, default=1)
     date = models.DateField()
     line = models.ForeignKey(ProductionLine, related_name='shift',  default=0, on_delete=models.CASCADE)
