@@ -85,10 +85,10 @@ if DEBUG:
     DATABASES = {
         'default': {
             'ENGINE': 'django.db.backends.mysql',
-            'NAME': 'pt-backend-database',
-            "USER": "yqufmebksl",
+            'NAME': 'api',
+            "USER": "aftimos",
             "PASSWORD": "Bismuth-19",
-            "HOST": "pt-backend-server.mysql.database.azure.com",
+            "HOST": "localhost",
             "PORT": "3306",
         }
     }
@@ -96,10 +96,10 @@ else:
     DATABASES = {
         'default': {
             'ENGINE': 'django.db.backends.mysql',
-            'NAME': 'api',
-            "USER": "aftimos",
+            'NAME': 'pt-backend-database',
+            "USER": "yqufmebksl",
             "PASSWORD": "Bismuth-19",
-            "HOST": "localhost",
+            "HOST": "pt-backend-server.mysql.database.azure.com",
             "PORT": "3306",
         }
     }
