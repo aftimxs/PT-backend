@@ -80,23 +80,28 @@ WSGI_APPLICATION = 'backend.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/4.2/ref/settings/#databases
 
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.mysql',
-        'NAME': 'pt-backend-database',
-        "USER": "yqufmebksl",
-        "PASSWORD": "Bismuth-19",
-        "HOST": "pt-backend-server.mysql.database.azure.com",
-        "PORT": "3306",
-
-        #'ENGINE': 'django.db.backends.mysql',
-        #'NAME': 'api',
-        #"USER": "aftimos",
-        #"PASSWORD": "Bismuth-19",
-        #"HOST": "localhost",
-        #"PORT": "3306",
+if DEBUG:
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.mysql',
+            'NAME': 'pt-backend-database',
+            "USER": "yqufmebksl",
+            "PASSWORD": "Bismuth-19",
+            "HOST": "pt-backend-server.mysql.database.azure.com",
+            "PORT": "3306",
+        }
     }
-}
+else:
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.mysql',
+            'NAME': 'api',
+            "USER": "aftimos",
+            "PASSWORD": "Bismuth-19",
+            "HOST": "localhost",
+            "PORT": "3306",
+        }
+    }
 
 
 # Password validation
@@ -133,8 +138,13 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/4.2/howto/static-files/
 
-STATIC_ROOT = './static/'
+STATIC_ROOT = os.path.join(BASE_DIR, 'static')
 STATIC_URL = '/static/'
+
+STATICFILES_FINDERS = (
+    'django.contrib.staticfiles.finders.FileSystemFinder',
+    'django.contrib.staticfiles.finders.AppDirectoriesFinder',
+)
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/4.2/ref/settings/#default-auto-field
