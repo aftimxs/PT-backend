@@ -112,4 +112,6 @@ class RegisterView(generics.CreateAPIView):
 
 
 class TestView(generics.CreateAPIView):
+    queryset = ProductionInfo.objects.all()
     serializer_class = ProductionInfoSerializer
+    permission_classes = (AllowAny,)
