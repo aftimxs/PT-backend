@@ -25,7 +25,7 @@ SECRET_KEY = 'django-insecure-)54$1@o7v9e6d+z_uzy_613jbesz%q(-5v9n08!=m1f7bs6=*8
 
 # SECURITY WARNING: don't run with debug turned on in production!
 ####
-DEBUG = True
+DEBUG = False
 
 ALLOWED_HOSTS = ['127.0.0.1', 'pt-backend.azurewebsites.net']
 
@@ -82,19 +82,19 @@ WSGI_APPLICATION = 'backend.wsgi.application'
 
 DATABASES = {
     'default': {
-        #'ENGINE': 'django.db.backends.mysql',
-        #'NAME': 'pt-backend-database',
-        #"USER": "yqufmebksl",
-        #"PASSWORD": "Bismuth-19",
-        #"HOST": "pt-backend-server.mysql.database.azure.com",
-        #"PORT": "3306",
-
         'ENGINE': 'django.db.backends.mysql',
-        'NAME': 'api',
-        "USER": "aftimos",
+        'NAME': 'pt-backend-database',
+        "USER": "yqufmebksl",
         "PASSWORD": "Bismuth-19",
-        "HOST": "localhost",
+        "HOST": "pt-backend-server.mysql.database.azure.com",
         "PORT": "3306",
+
+        #'ENGINE': 'django.db.backends.mysql',
+        #'NAME': 'api',
+        #"USER": "aftimos",
+        #"PASSWORD": "Bismuth-19",
+        #"HOST": "localhost",
+        #"PORT": "3306",
     }
 }
 
