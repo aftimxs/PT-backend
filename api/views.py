@@ -1,5 +1,6 @@
 from django.shortcuts import render
 from rest_framework import viewsets, status
+from rest_framework.response import Response
 from rest_framework.permissions import AllowAny
 
 from .serializers import *
@@ -110,8 +111,27 @@ class RegisterView(generics.CreateAPIView):
     permission_classes = (AllowAny,)
     serializer_class = RegisterSerializer
 
+    # def _send_email_verification(self, user: CustomUser):
+    #     current_site = get_current_site(self.request)
+    #     subject = 'Activate Your Account'
+    #     body = render_to_string(
+    #         'emails/email_verification.html',
+    #         {
+    #             'domain': current_site.domain,
+    #             'uid': urlsafe_base64_encode(force_bytes(user.pk)),
+    #             'token': email_verification_token.make_token(user),
+    #         }
+    #     )
+    #     EmailMessage(to=[user.email], subject=subject, body=body).send()
+
 
 class TestView(generics.CreateAPIView):
-    queryset = ProductionInfo.objects.all()
     serializer_class = ProductionInfoSerializer
     permission_classes = (AllowAny,)
+
+    def post(self, request, *args, **kwargs):
+        shift = request.data['shift']
+        previous_bar = TimelineBar.objects.filter(shift=shift)
+        print(previous_bar)
+
+        return Response('hi')

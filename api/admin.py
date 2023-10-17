@@ -53,3 +53,4 @@ admin.site.register(Scrap, ScrapAdmin)
 admin.site.register(Downtime, DowntimeAdmin)
 admin.site.register(Speedloss, SpeedlossAdmin)
 admin.site.register(ProductionInfo, ProductionInfoAdmin)
+

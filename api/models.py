@@ -1,5 +1,5 @@
-
 from django.db import models
+from django.contrib.auth.models import User
 
 
 # Create your models here.
@@ -98,3 +98,19 @@ class Speedloss(models.Model):
 
     class Meta:
         ordering = ['start']
+
+
+class TimelineBar(models.Model):
+    bar_type = [
+        (1, 'success'),
+        (2, 'warning'),
+        (3, 'danger')
+    ]
+
+    id = models.CharField(primary_key=True, max_length=50)
+    shift = models.ForeignKey(Shift, related_name='timelineBar', on_delete=models.CASCADE)
+    start_time = models.TimeField()
+    end_time = models.TimeField()
+    type = models.IntegerField(choices=bar_type)
+    bar_length = models.IntegerField()
+    parts_made = models.IntegerField()
