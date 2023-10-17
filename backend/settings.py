@@ -24,7 +24,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = 'django-insecure-)54$1@o7v9e6d+z_uzy_613jbesz%q(-5v9n08!=m1f7bs6=*8'
 
 # SECURITY WARNING: don't run with debug turned on in production!
-####
+#####
 DEBUG = False
 
 ALLOWED_HOSTS = ['127.0.0.1', 'pt-backend.azurewebsites.net']
@@ -48,6 +48,7 @@ INSTALLED_APPS = [
 MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
+    "whitenoise.middleware.WhiteNoiseMiddleware",
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -80,23 +81,28 @@ WSGI_APPLICATION = 'backend.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/4.2/ref/settings/#databases
 
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.mysql',
-        'NAME': 'pt-backend-database',
-        "USER": "yqufmebksl",
-        "PASSWORD": "Bismuth-19",
-        "HOST": "pt-backend-server.mysql.database.azure.com",
-        "PORT": "3306",
-
-        #'ENGINE': 'django.db.backends.mysql',
-        #'NAME': 'api',
-        #"USER": "aftimos",
-        #"PASSWORD": "Bismuth-19",
-        #"HOST": "localhost",
-        #"PORT": "3306",
+if DEBUG:
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.mysql',
+            'NAME': 'api',
+            "USER": "aftimos",
+            "PASSWORD": "Bismuth-19",
+            "HOST": "localhost",
+            "PORT": "3306",
+        }
     }
-}
+else:
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.mysql',
+            'NAME': 'pt-backend-database',
+            "USER": "yqufmebksl",
+            "PASSWORD": "Bismuth-19",
+            "HOST": "pt-backend-server.mysql.database.azure.com",
+            "PORT": "3306",
+        }
+    }
 
 
 # Password validation
@@ -133,8 +139,13 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/4.2/howto/static-files/
 
-STATIC_ROOT = './static/'
+STATIC_ROOT = os.path.join(BASE_DIR, 'static/')
 STATIC_URL = '/static/'
+
+STATICFILES_FINDERS = (
+    'django.contrib.staticfiles.finders.FileSystemFinder',
+    'django.contrib.staticfiles.finders.AppDirectoriesFinder',
+)
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/4.2/ref/settings/#default-auto-field
@@ -143,7 +154,11 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 CORS_ALLOW_ALL_ORIGINS = True
 
-CSRF_TRUSTED_ORIGINS = [' http://pt-backend.azurewebsites.net']
+CSRF_TRUSTED_ORIGINS = [' http://*.azurewebsites.net', ' https://*.azurewebsites.net']
+
+CSRF_COOKIE_SECURE = False
+
+CSRF_COOKIE_DOMAIN = ".azurewebsites.net"
 
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (

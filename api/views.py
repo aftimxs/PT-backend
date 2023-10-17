@@ -2,7 +2,6 @@ from django.shortcuts import render
 from rest_framework import viewsets, status
 from rest_framework.permissions import AllowAny
 
-from .models import *
 from .serializers import *
 from django.db.models import Prefetch
 from rest_framework import generics
@@ -102,18 +101,6 @@ class SpeedlossView(viewsets.ModelViewSet):
         return queryset
 
 
-class UsersView(viewsets.ModelViewSet):
-    serializer_class = UsersSerializer
-
-    def get_queryset(self):
-        queryset = Users.objects.all()
-        email = self.request.query_params.get('email')
-
-        if email is not None:
-            queryset = (queryset.filter(email=email))
-        return queryset
-
-
 class MyTokenObtainPairView(TokenObtainPairView):
     serializer_class = MyTokenObtainPairSerializer
 
@@ -122,3 +109,9 @@ class RegisterView(generics.CreateAPIView):
     queryset = User.objects.all()
     permission_classes = (AllowAny,)
     serializer_class = RegisterSerializer
+
+
+class TestView(generics.CreateAPIView):
+    queryset = ProductionInfo.objects.all()
+    serializer_class = ProductionInfoSerializer
+    permission_classes = (AllowAny,)
