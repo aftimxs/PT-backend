@@ -30,4 +30,4 @@ urlpatterns = [
     path('token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
     path('register/', RegisterView.as_view(), name='register'),
     path('test/', TestView.as_view(), name='test')
-]
+] + static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
