@@ -158,3 +158,4 @@ api/migrations/0005_alter_scrap_pieces.py
 api/migrations/0006_remove_order_products_order_product.py
 api/migrations/0007_alter_order_quantity.py
 api/migrations/0008_alter_productionline_cell.py
+api/migrations/0002_alter_productionline_id_alter_shift_id.py
