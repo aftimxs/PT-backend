@@ -80,6 +80,12 @@ class ProductionLineSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 
+class TimelineBarSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = TimelineBar
+        fields = '__all__'
+
+
 class MyTokenObtainPairSerializer(TokenObtainPairSerializer):
     @classmethod
     def get_token(cls, user):
