@@ -1,7 +1,7 @@
 from django.shortcuts import render
 from rest_framework import viewsets, status
 from rest_framework.response import Response
-from rest_framework.permissions import AllowAny
+from rest_framework.permissions import AllowAny, IsAuthenticated
 
 from .serializers import *
 from django.db.models import Prefetch
@@ -16,10 +16,12 @@ from rest_framework_simplejwt.views import TokenObtainPairView
 class ShiftView(viewsets.ModelViewSet):
     serializer_class = ShiftSerializer
     queryset = Shift.objects.all()
+    permission_classes = ([IsAuthenticated])
 
 
 class ProductionLineView(viewsets.ModelViewSet):
     serializer_class = ProductionLineSerializer
+    permission_classes = ([IsAuthenticated])
 
     def get_queryset(self):
         queryset = ProductionLine.objects.all()
@@ -36,6 +38,7 @@ class ProductionLineView(viewsets.ModelViewSet):
 
 class MachineView(viewsets.ModelViewSet):
     serializer_class = MachineSerializer
+    permission_classes = ([IsAuthenticated])
 
     def get_queryset(self):
         queryset = Machine.objects.all()
@@ -49,25 +52,30 @@ class MachineView(viewsets.ModelViewSet):
 class ProductView(viewsets.ModelViewSet):
     queryset = Product.objects.all()
     serializer_class = ProductSerializer
+    permission_classes = ([IsAuthenticated])
 
 
 class OrderView(viewsets.ModelViewSet):
     queryset = Order.objects.all()
     serializer_class = OrderSerializer
+    permission_classes = ([IsAuthenticated])
 
 
 class OperatorView(viewsets.ModelViewSet):
     queryset = Operator.objects.all()
     serializer_class = OperatorSerializer
+    permission_classes = ([IsAuthenticated])
 
 
 class ProductionInfoView(viewsets.ModelViewSet):
     queryset = ProductionInfo.objects.all().order_by('minute')
     serializer_class = ProductionInfoSerializer
+    permission_classes = ([IsAuthenticated])
 
 
 class ScrapView(viewsets.ModelViewSet):
     serializer_class = ScrapSerializer
+    permission_classes = ([IsAuthenticated])
 
     def get_queryset(self):
         queryset = Scrap.objects.all()
@@ -80,6 +88,7 @@ class ScrapView(viewsets.ModelViewSet):
 
 class DowntimeView(viewsets.ModelViewSet):
     serializer_class = DowntimeSerializer
+    permission_classes = ([IsAuthenticated])
 
     def get_queryset(self):
         queryset = Downtime.objects.all()
@@ -92,6 +101,7 @@ class DowntimeView(viewsets.ModelViewSet):
 
 class SpeedlossView(viewsets.ModelViewSet):
     serializer_class = SpeedlossSerializer
+    permission_classes = ([IsAuthenticated])
 
     def get_queryset(self):
         queryset = Speedloss.objects.all()
@@ -127,7 +137,7 @@ class RegisterView(generics.CreateAPIView):
 
 class TestView(generics.CreateAPIView):
     serializer_class = ProductionInfoSerializer
-    permission_classes = (AllowAny,)
+    permission_classes = ([IsAuthenticated])
 
     def post(self, request, *args, **kwargs):
         shift = request.data['shift']
