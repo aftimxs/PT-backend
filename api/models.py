@@ -71,7 +71,8 @@ class TimelineBar(models.Model):
     bar_type = [
         (1, 'success'),
         (2, 'warning'),
-        (3, 'danger')
+        (3, 'danger'),
+        (4, 'no info')
     ]
 
     id = models.CharField(primary_key=True, max_length=50)
