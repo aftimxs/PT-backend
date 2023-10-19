@@ -70,7 +70,7 @@ class OperatorView(viewsets.ModelViewSet):
 class ProductionInfoView(viewsets.ModelViewSet):
     queryset = ProductionInfo.objects.all().order_by('minute')
     serializer_class = ProductionInfoSerializer
-    permission_classes = ([IsAuthenticated])
+    # permission_classes = ([IsAuthenticated])
 
 
 class ScrapView(viewsets.ModelViewSet):
