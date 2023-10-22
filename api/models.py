@@ -82,8 +82,8 @@ class TimelineBar(models.Model):
     type = models.IntegerField(choices=bar_type)
     bar_length = models.IntegerField()
     parts_made = models.IntegerField()
-    reason = models.CharField(max_length=70, null=True)
-    description = models.CharField(max_length=150, null=True)
+    # reason = models.CharField(max_length=70, null=True)
+    # description = models.CharField(max_length=150, null=True)
 
     class Meta:
         ordering = ['start_time']

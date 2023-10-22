@@ -138,7 +138,14 @@ class RegisterView(generics.CreateAPIView):
 
 class TimelineBarView(viewsets.ModelViewSet):
     serializer_class = TimelineBarSerializer
-    queryset = TimelineBar.objects.all()
+
+    def get_queryset(self):
+        queryset = TimelineBar.objects.all()
+        shift = self.request.query_params.get('shift')
+
+        if shift is not None:
+            queryset = (queryset.filter(shift=shift))
+        return queryset
 
 
 class TestView(generics.CreateAPIView):
@@ -155,6 +162,7 @@ class TestView(generics.CreateAPIView):
         # DB DATA
         previous_bar = TimelineBar.objects.filter(shift=shift).values().last()
         rate = Order.objects.filter(shift=shift).values('product__rate')[0]['product__rate']
+        shift_num = getattr(Shift.objects.get(id=shift), 'number')
 
         # DATA FOR BAR TYPE
         minute_rate = rate / 60
@@ -162,9 +170,19 @@ class TestView(generics.CreateAPIView):
         if previous_bar:
             prev_type = previous_bar['type']
             prev_id = previous_bar['id']
+            prev_end_min = previous_bar['end_time']
         else:
             prev_type = 0
             prev_id = None
+            if shift_num == 1:
+                prev_end_min = datetime.strptime("05:59", "%H:%M").time()
+            elif shift_num == 2:
+                prev_end_min = datetime.strptime("16:59", "%H:%M").time()
+
+        this_minute = datetime.combine(date.today(), datetime.strptime(minute, "%H:%M").time())
+        prev_minute = datetime.combine(date.today(), prev_end_min)
+
+        on_time = this_minute == prev_minute + timedelta(minutes=1)
 
         # CREATE NEW BAR
         def new_bar(start, end, current_type, length, part_count):
@@ -203,14 +221,26 @@ class TestView(generics.CreateAPIView):
         def calculate_length(end, start):
             return ((end - start).total_seconds() / 60.0) + 1
 
-        this_minute = datetime.combine(date.today(), datetime.strptime(minute, "%H:%M").time())
-        prev_minute = datetime.combine(date.today(), previous_bar['end_time'])
+        def determine_fill_bars(beginning, ending):
+            result = []
 
-        on_time = this_minute == prev_minute + timedelta(minutes=1)
+            hours = (ending.hour - beginning.hour)
 
-        def x(first, second):
-            return [datetime.combine(date.today(), datetime.strptime(str(second.hour), "%H").time()),
-                    datetime.combine(date.today(), datetime.strptime(str(second.hour), "%H").time())-timedelta(minutes=1)]
+            result.append([beginning, datetime.combine(date.today(),
+                                datetime.strptime(str(beginning.hour+1), "%H").time())-timedelta(minutes=1)])
+
+            for i in range(1, hours):
+                print(i)
+                print(beginning.hour+i)
+                result.append(
+                    [datetime.combine(date.today(), datetime.strptime(str(beginning.hour+i), "%H").time()),
+                    datetime.combine(date.today(),
+                                datetime.strptime(str(beginning.hour+i+1), "%H").time())-timedelta(minutes=1)]
+                )
+
+            result.append([datetime.combine(date.today(), datetime.strptime(str(ending.hour), "%H").time()), ending])
+
+            return result
 
         if on_time:
             check_rate()
@@ -221,16 +251,12 @@ class TestView(generics.CreateAPIView):
 
             # CHECK IF IT SPANS MULTIPLE HOURS
             if s.hour != e.hour:
-                new_start = datetime.combine(date.today(), datetime.strptime(str(e.hour), "%H").time())
-                new_end = new_start - timedelta(minutes=1)
+                fill_bars = determine_fill_bars(s, e)
 
-                # FILLER BAR 1
-                long = calculate_length(new_end, s)
-                new_bar(s.strftime("%H:%M"), new_end.strftime("%H:%M"), 4, long, 0)
+                for bar in fill_bars:
+                    long = calculate_length(bar[1], bar[0])
+                    new_bar(bar[0].strftime("%H:%M"), bar[1].strftime("%H:%M"), 4, long, 0)
 
-                # FILLER BAR 2
-                long2 = calculate_length(e, new_start)
-                new_bar(new_start.strftime("%H:%M"), e.strftime("%H:%M"), 4, long2, 0)
             else:
                 # FILLER BAR
                 long = calculate_length(e, s)

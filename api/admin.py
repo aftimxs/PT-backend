@@ -43,7 +43,7 @@ class ProductionInfoAdmin(admin.ModelAdmin):
 
 
 class TimelineBarAdmin(admin.ModelAdmin):
-    list_display = ('id', 'shift', 'start_time', 'end_time', 'type', 'bar_length', 'parts_made', 'reason', 'description')
+    list_display = ('id', 'shift', 'start_time', 'end_time', 'type', 'bar_length', 'parts_made')
 
 
 # Register your models here.
