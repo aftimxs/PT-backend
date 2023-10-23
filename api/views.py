@@ -71,7 +71,7 @@ class OperatorView(viewsets.ModelViewSet):
 class ProductionInfoView(viewsets.ModelViewSet):
     queryset = ProductionInfo.objects.all().order_by('minute')
     serializer_class = ProductionInfoSerializer
-    permission_classes = ([IsAuthenticated])
+    # permission_classes = ([IsAuthenticated])
 
 
 class ScrapView(viewsets.ModelViewSet):
@@ -148,10 +148,15 @@ class TimelineBarView(viewsets.ModelViewSet):
         return queryset
 
 
-class TestView(generics.CreateAPIView):
+class TestView(generics.ListCreateAPIView):
     serializer_class = ProductionInfoSerializer
-
+    queryset = ProductionInfo.objects.all().order_by('minute')
     # permission_classes = ([IsAuthenticated])
+
+    def get(self, request, *args, **kwargs):
+        queryset = self.get_queryset()
+        serializer = ProductionInfoSerializer(queryset, many=True)
+        return Response(serializer.data)
 
     def post(self, request, *args, **kwargs):
         # REQUEST DATA
@@ -187,6 +192,7 @@ class TestView(generics.CreateAPIView):
         # CREATE NEW BAR
         def new_bar(start, end, current_type, length, part_count):
             bar_id = start.replace(':', '') + shift
+            hour = start.split(':')
 
             new = TimelineBar.objects.create(
                 id=bar_id,
@@ -196,11 +202,12 @@ class TestView(generics.CreateAPIView):
                 type=current_type,
                 bar_length=length,
                 parts_made=part_count,
+                hour=hour[0]+':00:00'
             )
             new.save()
 
         def check_color(current_type):
-            if current_type != prev_type or current_type == 1 or this_minute.hour != prev_minute.hour or not on_time:
+            if current_type != prev_type or this_minute.hour != prev_minute.hour or not on_time:
                 new_bar(minute, minute, current_type, 1, parts)
             else:
                 # UPDATE PREVIOUS BAR
@@ -227,15 +234,17 @@ class TestView(generics.CreateAPIView):
             hours = (ending.hour - beginning.hour)
 
             result.append([beginning, datetime.combine(date.today(),
-                                datetime.strptime(str(beginning.hour+1), "%H").time())-timedelta(minutes=1)])
+                                                       datetime.strptime(str(beginning.hour + 1),
+                                                                         "%H").time()) - timedelta(minutes=1)])
 
             for i in range(1, hours):
                 print(i)
-                print(beginning.hour+i)
+                print(beginning.hour + i)
                 result.append(
-                    [datetime.combine(date.today(), datetime.strptime(str(beginning.hour+i), "%H").time()),
-                    datetime.combine(date.today(),
-                                datetime.strptime(str(beginning.hour+i+1), "%H").time())-timedelta(minutes=1)]
+                    [datetime.combine(date.today(), datetime.strptime(str(beginning.hour + i), "%H").time()),
+                     datetime.combine(date.today(),
+                                      datetime.strptime(str(beginning.hour + i + 1), "%H").time()) - timedelta(
+                         minutes=1)]
                 )
 
             result.append([datetime.combine(date.today(), datetime.strptime(str(ending.hour), "%H").time()), ending])
@@ -264,5 +273,14 @@ class TestView(generics.CreateAPIView):
 
             # THIS BAR
             check_rate()
+
+        new_minute = ProductionInfo.objects.create(
+            hour=request.data['hour'],
+            minute=request.data['minute'],
+            item_count=request.data['item_count'],
+            line=ProductionLine.objects.filter(id=request.data['line'])[0],
+            shift=Shift.objects.filter(id=request.data['shift'])[0],
+        )
+        new_minute.save()
 
         return Response('hi')
