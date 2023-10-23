@@ -76,7 +76,7 @@ class ProductionInfoView(viewsets.ModelViewSet):
 
 class ScrapView(viewsets.ModelViewSet):
     serializer_class = ScrapSerializer
-    permission_classes = ([IsAuthenticated])
+    # permission_classes = ([IsAuthenticated])
 
     def get_queryset(self):
         queryset = Scrap.objects.all()
@@ -284,3 +284,9 @@ class TestView(generics.ListCreateAPIView):
         new_minute.save()
 
         return Response('hi')
+
+
+class BarCommentsView(viewsets.ModelViewSet):
+    queryset = BarComments.objects.all()
+    serializer_class = BarCommentsSerializer
+    # permission_classes = ([IsAuthenticated])
