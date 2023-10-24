@@ -232,6 +232,19 @@ class TestView(generics.ListCreateAPIView):
         def calculate_length(end, start):
             return ((end - start).total_seconds() / 60.0) + 1
 
+        def create_missing_minutes(first_min, last_min):
+            minutes = calculate_length(last_min, first_min)
+            for i in range(int(minutes)):
+                m = first_min + timedelta(minutes=i)
+                missing_minute = ProductionInfo.objects.create(
+                    hour=datetime.strptime(str(m.hour), "%H").time(),
+                    minute=m,
+                    item_count=0,
+                    line=ProductionLine.objects.filter(id=request.data['line'])[0],
+                    shift=Shift.objects.filter(id=request.data['shift'])[0],
+                )
+                missing_minute.save()
+
         def determine_fill_bars(beginning, ending):
             result = []
 
@@ -242,8 +255,6 @@ class TestView(generics.ListCreateAPIView):
                                                                          "%H").time()) - timedelta(minutes=1)])
 
             for i in range(1, hours):
-                print(i)
-                print(beginning.hour + i)
                 result.append(
                     [datetime.combine(date.today(), datetime.strptime(str(beginning.hour + i), "%H").time()),
                      datetime.combine(date.today(),
@@ -274,6 +285,8 @@ class TestView(generics.ListCreateAPIView):
                 # FILLER BAR
                 long = calculate_length(e, s)
                 new_bar(s.strftime("%H:%M"), e.strftime("%H:%M"), 4, long, 0)
+
+            create_missing_minutes(s, e)
 
             # THIS BAR
             check_rate()
