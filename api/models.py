@@ -82,7 +82,7 @@ class TimelineBar(models.Model):
     type = models.IntegerField(choices=bar_type)
     bar_length = models.IntegerField()
     parts_made = models.IntegerField()
-    hour = models.TimeField()
+    hour = models.TimeField(null=True)
 
     class Meta:
         ordering = ['start_time']
@@ -101,6 +101,7 @@ class Scrap(models.Model):
     reason = models.CharField(max_length=50, null=True)
     comments = models.CharField(max_length=200, null=True)
     bar = models.ForeignKey(TimelineBar, related_name='scrap', on_delete=models.CASCADE, default=None)
+    shift = models.ForeignKey(Shift, related_name='scrap', on_delete=models.CASCADE, default=None)
 
 
 class Downtime(models.Model):

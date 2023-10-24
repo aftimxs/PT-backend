@@ -27,7 +27,7 @@ class OperatorAdmin(admin.ModelAdmin):
 
 
 class ScrapAdmin(admin.ModelAdmin):
-    list_display = ('id', 'reason', 'pieces', 'comments', 'bar')
+    list_display = ('id', 'reason', 'pieces', 'comments', 'bar', 'shift')
 
 
 class DowntimeAdmin(admin.ModelAdmin):

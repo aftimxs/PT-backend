@@ -142,9 +142,13 @@ class TimelineBarView(viewsets.ModelViewSet):
     def get_queryset(self):
         queryset = TimelineBar.objects.all()
         shift = self.request.query_params.get('shift')
+        type = self.request.query_params.get('type')
 
         if shift is not None:
             queryset = (queryset.filter(shift=shift))
+            if type is not None:
+                queryset = (queryset.filter(shift=shift, type=type))
+
         return queryset
 
 
