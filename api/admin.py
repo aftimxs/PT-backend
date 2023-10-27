@@ -27,7 +27,7 @@ class OperatorAdmin(admin.ModelAdmin):
 
 
 class ScrapAdmin(admin.ModelAdmin):
-    list_display = ('id', 'reason', 'pieces', 'comments', 'shift', 'minute')
+    list_display = ('id', 'reason', 'pieces', 'comments', 'bar', 'shift')
 
 
 class DowntimeAdmin(admin.ModelAdmin):
@@ -42,6 +42,14 @@ class ProductionInfoAdmin(admin.ModelAdmin):
     list_display = ('id', 'hour', 'minute', 'item_count', 'line', 'shift')
 
 
+class TimelineBarAdmin(admin.ModelAdmin):
+    list_display = ('id', 'shift', 'start_time', 'end_time', 'type', 'bar_length', 'parts_made')
+
+
+class BarCommentsAdmin(admin.ModelAdmin):
+    list_display = ('id', 'reason', 'comments', 'bar')
+
+
 # Register your models here.
 admin.site.register(Shift, ShiftAdmin)
 admin.site.register(ProductionLine, ProductionLineAdmin)
@@ -53,4 +61,5 @@ admin.site.register(Scrap, ScrapAdmin)
 admin.site.register(Downtime, DowntimeAdmin)
 admin.site.register(Speedloss, SpeedlossAdmin)
 admin.site.register(ProductionInfo, ProductionInfoAdmin)
-
+admin.site.register(TimelineBar, TimelineBarAdmin)
+admin.site.register(BarComments, BarCommentsAdmin)

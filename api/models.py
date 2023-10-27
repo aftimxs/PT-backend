@@ -67,13 +67,41 @@ class ProductionInfo(models.Model):
         ordering = ['minute']
 
 
+class TimelineBar(models.Model):
+    bar_type = [
+        (1, 'success'),
+        (2, 'warning'),
+        (3, 'danger'),
+        (4, 'no info')
+    ]
+
+    id = models.CharField(primary_key=True, max_length=50)
+    shift = models.ForeignKey(Shift, related_name='timelineBar', on_delete=models.CASCADE)
+    start_time = models.TimeField()
+    end_time = models.TimeField()
+    type = models.IntegerField(choices=bar_type)
+    bar_length = models.IntegerField()
+    parts_made = models.IntegerField()
+    hour = models.TimeField(null=True)
+
+    class Meta:
+        ordering = ['start_time']
+
+
+class BarComments(models.Model):
+    id = models.CharField(primary_key=True, max_length=50)
+    reason = models.CharField(max_length=50, null=True)
+    comments = models.CharField(max_length=200, null=True)
+    bar = models.ForeignKey(TimelineBar, related_name='bar_comments', on_delete=models.CASCADE)
+
+
 class Scrap(models.Model):
     id = models.CharField(primary_key=True, max_length=50)
-    shift = models.ForeignKey(Shift, related_name='scrap', on_delete=models.CASCADE)
-    reason = models.CharField(max_length=50, null=True)
     pieces = models.IntegerField(null=True)
+    reason = models.CharField(max_length=50, null=True)
     comments = models.CharField(max_length=200, null=True)
-    minute = models.TimeField()
+    bar = models.ForeignKey(TimelineBar, related_name='scrap', on_delete=models.CASCADE, default=None)
+    shift = models.ForeignKey(Shift, related_name='scrap', on_delete=models.CASCADE, default=None)
 
 
 class Downtime(models.Model):
@@ -99,18 +127,3 @@ class Speedloss(models.Model):
     class Meta:
         ordering = ['start']
 
-
-class TimelineBar(models.Model):
-    bar_type = [
-        (1, 'success'),
-        (2, 'warning'),
-        (3, 'danger')
-    ]
-
-    id = models.CharField(primary_key=True, max_length=50)
-    shift = models.ForeignKey(Shift, related_name='timelineBar', on_delete=models.CASCADE)
-    start_time = models.TimeField()
-    end_time = models.TimeField()
-    type = models.IntegerField(choices=bar_type)
-    bar_length = models.IntegerField()
-    parts_made = models.IntegerField()

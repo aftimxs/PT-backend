@@ -80,6 +80,21 @@ class ProductionLineSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 
+class BarCommentsSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = BarComments
+        fields = '__all__'
+
+
+class TimelineBarSerializer(serializers.ModelSerializer):
+    bar_comments = BarCommentsSerializer(many=True, read_only=True)
+    scrap = ScrapSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = TimelineBar
+        fields = '__all__'
+
+
 class MyTokenObtainPairSerializer(TokenObtainPairSerializer):
     @classmethod
     def get_token(cls, user):
