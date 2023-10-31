@@ -31,9 +31,18 @@ class ProductionLineView(viewsets.ModelViewSet):
         date = self.request.query_params.get('date')
         number = self.request.query_params.get('number')
 
-        if area is not None and cell is not None and date is not None and number is not None:
-            queryset = (queryset.filter(area=area, cell=cell).
-                        prefetch_related(Prefetch('shift', queryset=Shift.objects.filter(number=number, date=date))))
+        if date is not None and number is not None and area is not None:
+            if area == 'All':
+                queryset = (queryset.
+                            prefetch_related(Prefetch('shift', queryset=Shift.objects.filter(number=number, date=date))))
+            else:
+                if cell is not None:
+                    queryset = (queryset.filter(area=area, cell=cell).
+                            prefetch_related(Prefetch('shift', queryset=Shift.objects.filter(number=number, date=date))))
+                else:
+                    queryset = (queryset.filter(area=area).
+                                prefetch_related(Prefetch('shift', queryset=Shift.objects.filter(number=number, date=date))))
+
         return queryset
 
 

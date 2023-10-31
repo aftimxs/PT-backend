@@ -126,4 +126,3 @@ class Speedloss(models.Model):
 
     class Meta:
         ordering = ['start']
-
