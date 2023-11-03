@@ -6,6 +6,7 @@ from .models import *
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from rest_framework.validators import UniqueValidator
 from django.contrib.auth.password_validation import validate_password
+from datetime import date, datetime, timedelta
 
 
 class ProductSerializer(serializers.ModelSerializer):
@@ -57,29 +58,6 @@ class SpeedlossSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 
-class ShiftSerializer(serializers.ModelSerializer):
-    order = OrderSerializer(many=True, read_only=True)
-    operator = OperatorSerializer(many=True, read_only=True)
-    info = ProductionInfoSerializer(many=True, read_only=True)
-    downtime = DowntimeSerializer(many=True, read_only=True)
-    speedloss = SpeedlossSerializer(many=True, read_only=True)
-    scrap = ScrapSerializer(many=True, read_only=True)
-
-    class Meta:
-        model = Shift
-        fields = '__all__'
-
-
-class ProductionLineSerializer(serializers.ModelSerializer):
-    machine = MachineSerializer(many=False, read_only=True)
-    scrap = ScrapSerializer(many=True, read_only=True)
-    shift = ShiftSerializer(many=True, read_only=True)
-
-    class Meta:
-        model = ProductionLine
-        fields = '__all__'
-
-
 class BarCommentsSerializer(serializers.ModelSerializer):
     class Meta:
         model = BarComments
@@ -92,6 +70,41 @@ class TimelineBarSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = TimelineBar
+        fields = '__all__'
+
+
+class ShiftSerializer(serializers.ModelSerializer):
+    order = OrderSerializer(many=True, read_only=True)
+    operator = OperatorSerializer(many=True, read_only=True)
+    info = ProductionInfoSerializer(many=True, read_only=True)
+    scrap = ScrapSerializer(many=True, read_only=True)
+    timelineBar = TimelineBarSerializer(many=True, read_only=True)
+
+    active = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Shift
+        fields = '__all__'
+
+    def get_active(self, obj):
+        if int((datetime.now().date() - obj.date).total_seconds()) == 0:
+            if obj.number == 1 and 6 < datetime.now().hour < 15:
+                return True
+            elif obj.number == 2 and 17 < datetime.now().hour < 24:
+                return True
+            else:
+                return False
+        else:
+            return False
+
+
+class ProductionLineSerializer(serializers.ModelSerializer):
+    machine = MachineSerializer(many=False, read_only=True)
+    scrap = ScrapSerializer(many=True, read_only=True)
+    shift = ShiftSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = ProductionLine
         fields = '__all__'
 
 

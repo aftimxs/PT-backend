@@ -34,11 +34,19 @@ class Shift(models.Model):
         (2, 'Second')
     ]
 
+    status_options = [
+        (1, 'success'),
+        (2, 'warning'),
+        (3, 'danger'),
+        (4, 'no info')
+    ]
+
     id = models.CharField(primary_key=True, max_length=50)
     number = models.IntegerField(choices=number, default=1)
     date = models.DateField()
     line = models.ForeignKey(ProductionLine, related_name='shift',  default=0, on_delete=models.CASCADE)
     operators = models.ManyToManyField(Operator, blank=True)
+    status = models.IntegerField(choices=status_options, default=4)
 
 
 class Machine(models.Model):

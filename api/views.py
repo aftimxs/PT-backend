@@ -207,6 +207,10 @@ class TestView(generics.ListCreateAPIView):
             bar_id = start.replace(':', '') + shift
             hour = start.split(':')
 
+            shift_to_update = Shift.objects.get(id=shift)
+            shift_to_update.status = current_type
+            shift_to_update.save()
+
             new = TimelineBar.objects.create(
                 id=bar_id,
                 shift=Shift.objects.filter(id=shift)[0],
