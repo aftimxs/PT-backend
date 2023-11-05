@@ -7,6 +7,7 @@ from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from rest_framework.validators import UniqueValidator
 from django.contrib.auth.password_validation import validate_password
 from datetime import date, datetime, timedelta
+from django.utils import timezone
 
 
 class ProductSerializer(serializers.ModelSerializer):
@@ -87,10 +88,10 @@ class ShiftSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
     def get_active(self, obj):
-        if int(((datetime.now()-timedelta(hours=3)).date() - obj.date).total_seconds()) == 0:
-            if obj.number == 1 and 6 < (datetime.now()-timedelta(hours=3)).hour < 15:
+        if int(((timezone.now()-timedelta(hours=8)).date() - obj.date).total_seconds()) == 0:
+            if obj.number == 1 and 6 < (timezone.now()-timedelta(hours=8)).hour < 15:
                 return True
-            elif obj.number == 2 and 17 < (datetime.now()-timedelta(hours=3)).hour < 24:
+            elif obj.number == 2 and 17 < (timezone.now()-timedelta(hours=8)).hour < 24:
                 return True
             else:
                 return False
