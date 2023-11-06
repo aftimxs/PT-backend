@@ -25,6 +25,7 @@ router.register(r'downtime', views.DowntimeView, 'downtime')
 router.register(r'speedloss', views.SpeedlossView, 'speedloss')
 router.register(r'timeline-bars', views.TimelineBarView, 'timeline-bars')
 router.register(r'comments', views.BarCommentsView, 'comments')
+router.register(r'calendar', views.CalendarLookupView, 'calendar')
 
 
 urlpatterns = [

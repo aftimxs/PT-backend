@@ -82,6 +82,8 @@ class ShiftSerializer(serializers.ModelSerializer):
     timelineBar = TimelineBarSerializer(many=True, read_only=True)
 
     active = serializers.SerializerMethodField()
+    start = serializers.SerializerMethodField()
+    end = serializers.SerializerMethodField()
 
     class Meta:
         model = Shift
@@ -98,11 +100,65 @@ class ShiftSerializer(serializers.ModelSerializer):
         else:
             return False
 
+    def get_start(self, obj):
+        if obj.number == 1:
+            return "06:00"
+        elif obj.number == 2:
+            return "17:00"
+
+    def get_end(self, obj):
+        if obj.number == 1:
+            return "15:00"
+        elif obj.number == 2:
+            return "24:00"
+
+
+class ShiftOnlyOrderSerializer(serializers.ModelSerializer):
+    order = OrderSerializer(many=True, read_only=True)
+    active = serializers.SerializerMethodField()
+    start = serializers.SerializerMethodField()
+    end = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Shift
+        fields = '__all__'
+
+    def get_active(self, obj):
+        if int(((timezone.now()-timedelta(hours=8)).date() - obj.date).total_seconds()) == 0:
+            if obj.number == 1 and 6 < (timezone.now()-timedelta(hours=8)).hour < 15:
+                return True
+            elif obj.number == 2 and 17 < (timezone.now()-timedelta(hours=8)).hour < 24:
+                return True
+            else:
+                return False
+        else:
+            return False
+
+    def get_start(self, obj):
+        if obj.number == 1:
+            return "06:00"
+        elif obj.number == 2:
+            return "17:00"
+
+    def get_end(self, obj):
+        if obj.number == 1:
+            return "15:00"
+        elif obj.number == 2:
+            return "24:00"
+
 
 class ProductionLineSerializer(serializers.ModelSerializer):
     machine = MachineSerializer(many=False, read_only=True)
     scrap = ScrapSerializer(many=True, read_only=True)
     shift = ShiftSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = ProductionLine
+        fields = '__all__'
+
+
+class ProductionLineOnlyShiftSerializer(serializers.ModelSerializer):
+    shift = ShiftOnlyOrderSerializer(many=True, read_only=True)
 
     class Meta:
         model = ProductionLine

@@ -46,6 +46,27 @@ class ProductionLineView(viewsets.ModelViewSet):
         return queryset
 
 
+class CalendarLookupView(viewsets.ModelViewSet):
+    serializer_class = ProductionLineOnlyShiftSerializer
+
+    def get_queryset(self):
+        queryset = ProductionLine.objects.all()
+        area = self.request.query_params.get('area')
+        year = self.request.query_params.get('year')
+        month = self.request.query_params.get('month')
+
+        if year is not None and month is not None:
+            if area == 'All':
+                queryset = (queryset.
+                            prefetch_related(
+                            Prefetch('shift', queryset=Shift.objects.filter(date__year=year, date__month=month))))
+            else:
+                queryset = (queryset.filter(area=area).
+                            prefetch_related(
+                            Prefetch('shift', queryset=Shift.objects.filter(date__year=year, date__month=month))))
+        return queryset
+
+
 class MachineView(viewsets.ModelViewSet):
     serializer_class = MachineSerializer
     permission_classes = ([IsAuthenticated])
