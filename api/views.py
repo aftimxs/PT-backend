@@ -54,16 +54,23 @@ class CalendarLookupView(viewsets.ModelViewSet):
         area = self.request.query_params.get('area')
         year = self.request.query_params.get('year')
         month = self.request.query_params.get('month')
+        day = self.request.query_params.get('day')
 
         if year is not None and month is not None:
             if area == 'All':
-                queryset = (queryset.
-                            prefetch_related(
-                            Prefetch('shift', queryset=Shift.objects.filter(date__year=year, date__month=month))))
+                if day is not None:
+                    queryset = (queryset.
+                                prefetch_related(Prefetch('shift', queryset=Shift.objects.filter(date__year=year, date__month=month, date__day=day))))
+                else:
+                    queryset = (queryset.
+                                prefetch_related(Prefetch('shift', queryset=Shift.objects.filter(date__year=year, date__month=month))))
             else:
-                queryset = (queryset.filter(area=area).
-                            prefetch_related(
-                            Prefetch('shift', queryset=Shift.objects.filter(date__year=year, date__month=month))))
+                if day is not None:
+                    queryset = (queryset.filter(area=area).
+                                prefetch_related(Prefetch('shift', queryset=Shift.objects.filter(date__year=year, date__month=month, date__day=day))))
+                else:
+                    queryset = (queryset.filter(area=area).
+                                prefetch_related(Prefetch('shift', queryset=Shift.objects.filter(date__year=year, date__month=month))))
         return queryset
 
 
