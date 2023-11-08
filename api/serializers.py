@@ -84,6 +84,8 @@ class ShiftSerializer(serializers.ModelSerializer):
     active = serializers.SerializerMethodField()
     start = serializers.SerializerMethodField()
     end = serializers.SerializerMethodField()
+    passed = serializers.SerializerMethodField()
+    has_data = serializers.SerializerMethodField()
 
     class Meta:
         model = Shift
@@ -111,13 +113,28 @@ class ShiftSerializer(serializers.ModelSerializer):
             return "15:00"
         elif obj.number == 2:
             return "24:00"
+
+    def get_passed(self, obj):
+        if (timezone.now()-timedelta(hours=8)).date() >= obj.date:
+            return True
+        else:
+            return False
+
+    def get_has_data(self, obj):
+        if ProductionInfo.objects.filter(shift=obj.id):
+            return True
+        else:
+            return False
 
 
 class ShiftOnlyOrderSerializer(serializers.ModelSerializer):
     order = OrderSerializer(many=True, read_only=True)
+
     active = serializers.SerializerMethodField()
     start = serializers.SerializerMethodField()
     end = serializers.SerializerMethodField()
+    passed = serializers.SerializerMethodField()
+    has_data = serializers.SerializerMethodField()
 
     class Meta:
         model = Shift
@@ -145,6 +162,18 @@ class ShiftOnlyOrderSerializer(serializers.ModelSerializer):
             return "15:00"
         elif obj.number == 2:
             return "24:00"
+
+    def get_passed(self, obj):
+        if (timezone.now()-timedelta(hours=8)).date() >= obj.date:
+            return True
+        else:
+            return False
+
+    def get_has_data(self, obj):
+        if ProductionInfo.objects.filter(shift=obj.id):
+            return True
+        else:
+            return False
 
 
 class ProductionLineSerializer(serializers.ModelSerializer):

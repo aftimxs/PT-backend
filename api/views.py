@@ -15,7 +15,7 @@ from datetime import date, datetime, timedelta
 # Create your views here.
 class ShiftView(viewsets.ModelViewSet):
     serializer_class = ShiftSerializer
-    queryset = Shift.objects.all()
+    queryset = Shift.objects.all().order_by('date')
     # permission_classes = ([IsAuthenticated])
 
 
