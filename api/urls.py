@@ -14,6 +14,7 @@ from api.views import MyTokenObtainPairView, RegisterView, TestView
 
 router = routers.DefaultRouter()
 router.register(r'shift', views.ShiftView, 'shift')
+router.register(r'shortShift', views.ShortShiftView, 'shortShift')
 router.register(r'production-line', views.ProductionLineView, 'production-line')
 router.register(r'machine', views.MachineView, 'machine')
 router.register(r'product', views.ProductView, 'product')

@@ -19,6 +19,12 @@ class ShiftView(viewsets.ModelViewSet):
     # permission_classes = ([IsAuthenticated])
 
 
+class ShortShiftView(viewsets.ModelViewSet):
+    serializer_class = ShiftOnlyOrderSerializer
+    queryset = Shift.objects.all().order_by('date')
+    # permission_classes = ([IsAuthenticated])
+
+
 class ProductionLineView(viewsets.ModelViewSet):
     serializer_class = ProductionLineSerializer
 
