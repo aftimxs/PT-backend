@@ -42,6 +42,29 @@ class ProductionInfoSerializer(serializers.ModelSerializer):
 
 
 class ScrapSerializer(serializers.ModelSerializer):
+
+    def update(self, instance, validated_data):
+        scrap_id = validated_data.get('id')
+        pieces = validated_data.get('pieces')
+
+        if pieces:
+            shift_to_update = Shift.objects.get(scrap__id=scrap_id)
+            if instance.pieces:
+                difference = pieces - instance.pieces
+                shift_to_update.total_scrap = shift_to_update.total_scrap + difference
+            else:
+                shift_to_update.total_scrap = shift_to_update.total_scrap + pieces
+            shift_to_update.save()
+
+        # need to add has scrap logic
+
+        validated_data.pop('id', None)
+        update_fields = [k for k in validated_data]
+        for k, v in validated_data.items():
+            setattr(instance, k, v)
+        instance.save(update_fields=update_fields)
+        return instance
+
     class Meta:
         model = Scrap
         fields = '__all__'

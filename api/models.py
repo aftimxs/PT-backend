@@ -8,6 +8,9 @@ class ProductionLine(models.Model):
     area = models.CharField(max_length=15)
     cell = models.IntegerField(null=True)
 
+    # class Meta:
+    #     ordering = ['shift__date']
+
 
 class Product(models.Model):
     part_num = models.CharField(max_length=20, unique=True)
@@ -47,6 +50,13 @@ class Shift(models.Model):
     line = models.ForeignKey(ProductionLine, related_name='shift',  default=0, on_delete=models.CASCADE)
     operators = models.ManyToManyField(Operator, blank=True)
     status = models.IntegerField(choices=status_options, default=4)
+    total_parts = models.IntegerField(default=0)
+    total_scrap = models.IntegerField(default=0)
+    total_stopped = models.IntegerField(default=0)
+    total_slow = models.IntegerField(default=0)
+
+    class Meta:
+        ordering = ['date']
 
 
 class Machine(models.Model):
@@ -91,6 +101,7 @@ class TimelineBar(models.Model):
     bar_length = models.IntegerField()
     parts_made = models.IntegerField()
     hour = models.TimeField(null=True)
+    has_scrap = models.BooleanField(default=False)
 
     class Meta:
         ordering = ['start_time']
