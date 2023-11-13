@@ -77,7 +77,25 @@ class CalendarLookupView(viewsets.ModelViewSet):
                 else:
                     queryset = (queryset.filter(area=area).
                                 prefetch_related(Prefetch('shift', queryset=Shift.objects.filter(date__year=year, date__month=month))))
+        # print(bool(queryset.get(id='A1').shift.values()))
+
+        # for line in queryset:
+        #     print(line)
+            # if not bool(line.shift.values()):
+            #     queryset.exclude(line)
+
+        print(queryset.exclude(shift__id__isnull=True))
         return queryset
+
+    def list(self, request, *args, **kwargs):
+
+        print(self)
+
+        queryset = self.get_queryset()
+        serializer = self.serializer_class(queryset, many=True)
+
+        print(queryset)
+        return Response(serializer.data)
 
 
 class MachineView(viewsets.ModelViewSet):
@@ -130,15 +148,25 @@ class ScrapView(viewsets.ModelViewSet):
         return queryset
 
     def destroy(self, request, *args, **kwargs):
-        scrap_id = request.data['id']
-        pieces = request.data['pieces']
-        shift = request.data['shift']
+        if request.data:
+            scrap_id = request.data['id']
+            pieces = request.data['pieces']
+            shift = request.data['shift']
+            bar = request.data['bar']
 
-        shift_to_update = Shift.objects.get(id=shift)
-        shift_to_update.total_scrap = shift_to_update.total_scrap - pieces
-        shift_to_update.save()
+            if pieces:
+                shift_to_update = Shift.objects.get(id=shift)
+                shift_to_update.total_scrap = shift_to_update.total_scrap - pieces
+                shift_to_update.save()
 
-        self.get_queryset().filter(id=scrap_id).delete()
+            bar_to_update = TimelineBar.objects.get(id=bar)
+            bar_to_update.has_scrap = False
+            bar_to_update.save()
+
+            self.get_queryset().filter(id=scrap_id).delete()
+        else:
+            instance = self.get_object()
+            self.perform_destroy(instance)
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 

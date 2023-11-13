@@ -56,12 +56,17 @@ class ScrapSerializer(serializers.ModelSerializer):
                 shift_to_update.total_scrap = shift_to_update.total_scrap + pieces
             shift_to_update.save()
 
-        # need to add has scrap logic
-
+        # remove id because its PK
         validated_data.pop('id', None)
+        # list of scrap fields in validated data
         update_fields = [k for k in validated_data]
+        # update the data on those fields
         for k, v in validated_data.items():
             setattr(instance, k, v)
+        # update has scrap on timeline Bar
+        setattr(instance.bar, 'has_scrap', True)
+        # save everything
+        instance.bar.save(update_fields=['has_scrap'])
         instance.save(update_fields=update_fields)
         return instance
 
