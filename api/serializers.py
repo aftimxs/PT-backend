@@ -280,3 +280,36 @@ class RegisterSerializer(serializers.ModelSerializer):
         user.save()
 
         return user
+
+
+class ConstrainedDictField(serializers.DictField):
+    def to_internal_value(self, data):
+        # Perform validation on the keys of the dictionary here
+        if set(data.keys()) != {"area", "cell", "shift"}:
+            raise serializers.ValidationError("Invalid keys for dictionary.")
+
+        return super().to_internal_value(data)
+
+
+class ExtendedPropsSerializer(serializers.Serializer):
+    area = serializers.CharField(max_length=20)
+    cell = serializers.IntegerField()
+    shift = ShiftOnlyOrderSerializer(many=False, read_only=True)
+
+
+class CalendarShiftSerializer(serializers.Serializer):
+    id = serializers.CharField(max_length=50)
+    title = serializers.CharField(max_length=50)
+    date = serializers.DateField()
+    allDay = serializers.BooleanField()
+    editable = serializers.BooleanField()
+    backgroundColor = serializers.CharField(max_length=10)
+    borderColor = serializers.CharField(max_length=10)
+    extendedProps = ExtendedPropsSerializer(many=False, read_only=True)
+
+
+class CalendarDayShiftSerializer(serializers.Serializer):
+    id = serializers.CharField(max_length=50)
+    area = serializers.CharField(max_length=20)
+    cell = serializers.IntegerField()
+    shift = ShiftOnlyOrderSerializer(many=False, read_only=True)

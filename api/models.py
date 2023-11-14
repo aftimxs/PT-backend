@@ -1,5 +1,7 @@
 from django.db import models
 from django.contrib.auth.models import User
+from django.utils import timezone
+from datetime import date, datetime, timedelta
 
 
 # Create your models here.
@@ -47,13 +49,39 @@ class Shift(models.Model):
     id = models.CharField(primary_key=True, max_length=50)
     number = models.IntegerField(choices=number, default=1)
     date = models.DateField()
-    line = models.ForeignKey(ProductionLine, related_name='shift',  default=0, on_delete=models.CASCADE)
+    line = models.ForeignKey(ProductionLine, related_name='shift', default=0, on_delete=models.CASCADE)
     operators = models.ManyToManyField(Operator, blank=True)
     status = models.IntegerField(choices=status_options, default=4)
     total_parts = models.IntegerField(default=0)
     total_scrap = models.IntegerField(default=0)
     total_stopped = models.IntegerField(default=0)
     total_slow = models.IntegerField(default=0)
+
+    @property
+    def passed(self):
+        if (timezone.now() - timedelta(hours=8)).date() >= self.date:
+            return True
+        else:
+            return False
+
+    @property
+    def active(self):
+        if int(((timezone.now()-timedelta(hours=8)).date() - self.date).total_seconds()) == 0:
+            if self.number == 1 and 6 < (timezone.now()-timedelta(hours=8)).hour < 15:
+                return True
+            elif self.number == 2 and 17 < (timezone.now()-timedelta(hours=8)).hour < 24:
+                return True
+            else:
+                return False
+        else:
+            return False
+
+    @property
+    def has_data(self):
+        if ProductionInfo.objects.filter(shift=self.id):
+            return True
+        else:
+            return False
 
     class Meta:
         ordering = ['date']

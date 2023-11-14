@@ -53,49 +53,99 @@ class ProductionLineView(viewsets.ModelViewSet):
 
 
 class CalendarLookupView(viewsets.ModelViewSet):
-    serializer_class = ProductionLineOnlyShiftSerializer
+    serializer_class = CalendarShiftSerializer
 
     def get_queryset(self):
-        queryset = ProductionLine.objects.all()
+        queryset = Shift.objects.all()
+        area = self.request.query_params.get('area')
+        year = self.request.query_params.get('year')
+        month = self.request.query_params.get('month')
+
+        if year is not None and month is not None:
+            if area == 'All':
+                queryset = Shift.objects.all().filter(date__year=year, date__month=month)
+            else:
+                queryset = Shift.objects.all().filter(date__year=year, date__month=month)
+        return queryset
+
+    def list(self, request, *args, **kwargs):
+        queryset = self.get_queryset()
+
+        class CalendarShift(object):
+            def __init__(self, id, title, date, allDay, editable, backgroundColor, borderColor, extendedProps):
+                self.id = id
+                self.title = title
+                self.date = date
+                self.allDay = allDay
+                self.editable = editable
+                self.backgroundColor = backgroundColor
+                self.borderColor = borderColor
+                self.extendedProps = extendedProps
+
+        shifts = []
+        for shift in queryset:
+            def color():
+                if shift.passed:
+                    if shift.active:
+                        return '#66bb6a'
+                    else:
+                        if shift.has_data:
+                            return '#ffa726'
+                        else:
+                            return '#f44336'
+                else:
+                    return '#0288d1'
+            shifts.append(CalendarShift(
+                shift.id,
+                "{area} {cell} (S:{number})".format(area=shift.line.area, cell=shift.line.cell, number=shift.number),
+                shift.date,
+                True,
+                not shift.passed,
+                color(),
+                color(),
+                {'area': shift.line.area, 'cell': shift.line.cell, 'shift': shift}
+            ))
+
+        return Response(CalendarShiftSerializer(shifts, many=True).data)
+
+
+class CalendarDayLookupView(viewsets.ModelViewSet):
+    serializer_class = CalendarDayShiftSerializer
+
+    def get_queryset(self):
+        queryset = Shift.objects.all()
         area = self.request.query_params.get('area')
         year = self.request.query_params.get('year')
         month = self.request.query_params.get('month')
         day = self.request.query_params.get('day')
 
-        if year is not None and month is not None:
+        if year is not None and month is not None and day is not None:
             if area == 'All':
-                if day is not None:
-                    queryset = (queryset.
-                                prefetch_related(Prefetch('shift', queryset=Shift.objects.filter(date__year=year, date__month=month, date__day=day))))
-                else:
-                    queryset = (queryset.
-                                prefetch_related(Prefetch('shift', queryset=Shift.objects.filter(date__year=year, date__month=month))))
+                queryset = Shift.objects.all().filter(date__year=year, date__month=month, date__day=day)
             else:
-                if day is not None:
-                    queryset = (queryset.filter(area=area).
-                                prefetch_related(Prefetch('shift', queryset=Shift.objects.filter(date__year=year, date__month=month, date__day=day))))
-                else:
-                    queryset = (queryset.filter(area=area).
-                                prefetch_related(Prefetch('shift', queryset=Shift.objects.filter(date__year=year, date__month=month))))
-        # print(bool(queryset.get(id='A1').shift.values()))
-
-        # for line in queryset:
-        #     print(line)
-            # if not bool(line.shift.values()):
-            #     queryset.exclude(line)
-
-        print(queryset.exclude(shift__id__isnull=True))
+                queryset = Shift.objects.all().filter(date__year=year, date__month=month, date__day=day)
         return queryset
 
     def list(self, request, *args, **kwargs):
-
-        print(self)
-
         queryset = self.get_queryset()
-        serializer = self.serializer_class(queryset, many=True)
 
-        print(queryset)
-        return Response(serializer.data)
+        class CalendarDayShift(object):
+            def __init__(self, id, area, cell, shift):
+                self.id = id
+                self.area = area
+                self.cell = cell
+                self.shift = shift
+
+        shifts = []
+        for shift in queryset:
+            shifts.append(CalendarDayShift(
+                shift.id,
+                shift.line.area,
+                shift.line.cell,
+                shift
+            ))
+
+        return Response(CalendarDayShiftSerializer(shifts, many=True).data)
 
 
 class MachineView(viewsets.ModelViewSet):
