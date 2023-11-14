@@ -460,3 +460,55 @@ class BarCommentsView(viewsets.ModelViewSet):
     queryset = BarComments.objects.all()
     serializer_class = BarCommentsSerializer
     # permission_classes = ([IsAuthenticated])
+
+
+class ProductStatisticsView(generics.ListAPIView):
+    # permission_classes = ([IsAuthenticated])
+
+    def get_queryset(self):
+        queryset = Shift.objects.all()
+        period = self.request.query_params.get('period')
+        data_request = self.request.query_params.get('data_request')
+
+        if period is not None and data_request is not None:
+            today = (timezone.now() - timedelta(hours=8)).date()
+            match data_request:
+                case 'parts-made':
+                    match period:
+                        case 'today':
+                            queryset = (queryset.filter(date=today))
+                        case '7days':
+                            queryset = (queryset.filter(date__range=[today-timedelta(days=7), today]))
+                        case '30days':
+                            queryset = (queryset.filter(date__range=[today - timedelta(days=30), today]))
+                        case '60days':
+                            queryset = (queryset.filter(date__range=[today - timedelta(days=60), today]))
+            return queryset.exclude(total_parts__exact=0)
+
+    def get(self, request, *args, **kwargs):
+        queryset = self.get_queryset()
+        data_request = self.request.query_params.get('data_request')
+
+        if data_request is not None:
+            match data_request:
+                case 'parts-made':
+                    lines = [{'line': 'W1', 'item_count': 0},
+                             {'line': 'W10', 'item_count': 0},
+                             {'line': 'M1', 'item_count': 0},
+                             {'line': 'A1', 'item_count': 0}
+                             ]
+                    for line in lines:
+                        for shift in queryset:
+                            if shift.line.id in line.values():
+                                line.update({'item_count': list(line.values())[1] + shift.total_parts})
+
+                    return Response(PartsMadeSerializer(lines, many=True).data)
+
+                case 'total-runs':
+                    products = [{'product': product.id, 'run_count': 0} for product in Product.objects.all()]
+                    for product in products:
+                        for shift in queryset:
+                            if shift.order.values()[0]['product_id'] in product.values():
+                                product.update({'run_count': list(product.values())[1] + 1})
+
+                    return Response(ProductTimesRunSerializer(products, many=True).data)

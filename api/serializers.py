@@ -313,3 +313,13 @@ class CalendarDayShiftSerializer(serializers.Serializer):
     area = serializers.CharField(max_length=20)
     cell = serializers.IntegerField()
     shift = ShiftOnlyOrderSerializer(many=False, read_only=True)
+
+
+class PartsMadeSerializer(serializers.Serializer):
+    line = serializers.CharField(max_length=10)
+    item_count = serializers.IntegerField()
+
+
+class ProductTimesRunSerializer(serializers.Serializer):
+    product = serializers.IntegerField()
+    run_count = serializers.IntegerField()
