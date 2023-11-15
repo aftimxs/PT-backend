@@ -83,6 +83,15 @@ class Shift(models.Model):
         else:
             return False
 
+    @property
+    def active_minutes(self):
+        total = 0
+        for bar in self.timelineBar.all():
+            if bar.type is 1 or bar.type is 2:
+                total = total + (((datetime.combine(date.today(), bar.end_time) -
+                                    datetime.combine(date.today(), bar.start_time)).total_seconds() / 60.0) + 1)
+        return total
+
     class Meta:
         ordering = ['date']
 

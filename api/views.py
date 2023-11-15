@@ -11,6 +11,8 @@ from rest_framework_simplejwt.views import TokenObtainPairView
 
 from datetime import date, datetime, timedelta
 
+from .helper_functions import determine_period, get_period_days
+
 
 # Create your views here.
 class ShiftView(viewsets.ModelViewSet):
@@ -468,21 +470,9 @@ class ProductStatisticsView(generics.ListAPIView):
     def get_queryset(self):
         queryset = Shift.objects.all()
         period = self.request.query_params.get('period')
-        data_request = self.request.query_params.get('data_request')
 
-        if period is not None and data_request is not None:
-            today = (timezone.now() - timedelta(hours=8)).date()
-            match data_request:
-                case 'parts-made':
-                    match period:
-                        case 'today':
-                            queryset = (queryset.filter(date=today))
-                        case '7days':
-                            queryset = (queryset.filter(date__range=[today-timedelta(days=7), today]))
-                        case '30days':
-                            queryset = (queryset.filter(date__range=[today - timedelta(days=30), today]))
-                        case '60days':
-                            queryset = (queryset.filter(date__range=[today - timedelta(days=60), today]))
+        if period is not None:
+            queryset = determine_period(period, queryset)
             return queryset.exclude(total_parts__exact=0)
 
     def get(self, request, *args, **kwargs):
@@ -492,11 +482,125 @@ class ProductStatisticsView(generics.ListAPIView):
         if data_request is not None:
             match data_request:
                 case 'parts-made':
-                    lines = [{'line': 'W1', 'item_count': 0},
-                             {'line': 'W10', 'item_count': 0},
-                             {'line': 'M1', 'item_count': 0},
-                             {'line': 'A1', 'item_count': 0}
-                             ]
+                    products = [{'product_id': product.id, 'product': product.part_num, 'item_count': 0,
+                                 'scrap_count': 0, 'good_percentage': 0} for product in Product.objects.all()]
+                    for product in products:
+                        for shift in queryset:
+                            if shift.order.values()[0]['product_id'] in product.values():
+                                good = list(product.values())[2] + shift.total_parts
+                                bad = list(product.values())[3] + shift.total_scrap
+                                product.update({'item_count': good,
+                                                'scrap_count': bad,
+                                                'good_percentage': round(good/(good+bad), 2)})
+
+                    return Response(PartsMadeSerializer(products, many=True).data)
+
+                case 'accumulated-total':
+                    count = {'item_count': 0, 'scrap_count': 0, 'good_percentage': 0}
+                    for shift in queryset:
+                        good = list(count.values())[0] + shift.total_parts
+                        bad = list(count.values())[1] + shift.total_scrap
+                        count.update({'item_count': good, 'scrap_count': bad, 'good_percentage': round(good/(good+bad), 2)})
+
+                    return Response(AccumulatedTotalParts(count).data)
+
+                case 'accumulated-total-period':
+                    period = self.request.query_params.get('period')
+                    grouping = self.request.query_params.get('grouping')
+
+                    if grouping:
+                        match grouping:
+                            case 'daily':
+                                days_range = get_period_days(grouping, period)
+                                days = [{'day': x, 'item_count': 0, 'scrap_count': 0, 'good_percentage': 0} for x in days_range]
+                                for day in days:
+                                    for shift in queryset:
+                                        if shift.date in day.values():
+                                            good = list(day.values())[1] + shift.total_parts
+                                            bad = list(day.values())[2] + shift.total_scrap
+                                            day.update({'item_count': good,
+                                                        'scrap_count': bad,
+                                                        'good_percentage': round(good/(good+bad), 2)})
+
+                                return Response(TotalPartsMadeDailySerializer(days, many=True).data)
+
+                            case 'weekly':
+                                weeks_range = get_period_days(grouping, period)
+                                weeks = [{'week': x, 'item_count': 0, 'scrap_count': 0, 'good_percentage': 0} for x in weeks_range]
+                                for week in weeks:
+                                    for shift in queryset:
+                                        if int(shift.date.isocalendar().week) == list(week.values())[0]:
+                                            good = list(week.values())[1] + shift.total_parts
+                                            bad = list(week.values())[2] + shift.total_scrap
+                                            week.update({'item_count': good,
+                                                        'scrap_count': bad,
+                                                        'good_percentage': round(good / (good + bad), 2)})
+
+                                return Response(TotalPartsMadeWeeklySerializer(weeks, many=True).data)
+
+                            case 'monthly':
+                                months_range = get_period_days(grouping, period)
+                                months = [{'month': x, 'item_count': 0, 'scrap_count': 0, 'good_percentage': 0} for x in
+                                         months_range]
+                                for month in months:
+                                    for shift in queryset:
+                                        if shift.date.month == list(month.values())[0]:
+                                            good = list(month.values())[1] + shift.total_parts
+                                            bad = list(month.values())[2] + shift.total_scrap
+                                            month.update({'item_count': good,
+                                                         'scrap_count': bad,
+                                                         'good_percentage': round(good / (good + bad), 2)})
+
+                                return Response(TotalPartsMadeMonthlySerializer(months, many=True).data)
+                    else:
+                        return Response({'detail': "Request data 'grouping' is missing"}, status=status.HTTP_400_BAD_REQUEST)
+
+                case 'total-runs':
+                    products = [{'product_id': product.id, 'product': product.part_num, 'run_count': 0} for product in Product.objects.all()]
+                    for product in products:
+                        for shift in queryset:
+                            if shift.order.values()[0]['product_id'] == list(product.values())[0]:
+                                product.update({'run_count': list(product.values())[2] + 1})
+
+                    return Response(ProductTimesRunSerializer(products, many=True).data)
+
+                case 'expected-vs-actual-rate':
+                    products = [{'product_id': product.id, 'product': product.part_num, 'expected_rate': product.rate,
+                          'actual_rate': product.rate, 'shift_count': 0} for product in Product.objects.all()]
+                    for product in products:
+                        parts = 0
+                        minutes = 0
+                        shift_count = 0
+                        for shift in queryset:
+                            if shift.order.values()[0]['product_id'] == list(product.values())[0]:
+                                parts = parts + (shift.total_parts-shift.total_scrap)
+                                minutes = minutes + shift.active_minutes
+                                shift_count += 1
+                        if parts != 0 and minutes != 0:
+                            product.update({'actual_rate': ((parts/minutes)*60), 'shift_count': shift_count})
+
+                    return Response(ProductActualRateSerializer(products, many=True).data)
+
+
+class LineStatisticsView(generics.ListAPIView):
+    # permission_classes = ([IsAuthenticated])
+
+    def get_queryset(self):
+        queryset = Shift.objects.all()
+        period = self.request.query_params.get('period')
+
+        if period is not None:
+            queryset = determine_period(period, queryset)
+            return queryset.exclude(total_parts__exact=0)
+
+    def get(self, request, *args, **kwargs):
+        queryset = self.get_queryset()
+        data_request = self.request.query_params.get('data_request')
+
+        if data_request is not None:
+            match data_request:
+                case 'parts-made':
+                    lines = [{'line': line.id, 'item_count': 0} for line in ProductionLine.objects.all()]
                     for line in lines:
                         for shift in queryset:
                             if shift.line.id in line.values():
@@ -505,10 +609,10 @@ class ProductStatisticsView(generics.ListAPIView):
                     return Response(PartsMadeSerializer(lines, many=True).data)
 
                 case 'total-runs':
-                    products = [{'product': product.id, 'run_count': 0} for product in Product.objects.all()]
+                    products = [{'product_id': product.id, 'product': product.part_num, 'run_count': 0} for product in Product.objects.all()]
                     for product in products:
                         for shift in queryset:
                             if shift.order.values()[0]['product_id'] in product.values():
-                                product.update({'run_count': list(product.values())[1] + 1})
+                                product.update({'run_count': list(product.values())[2] + 1})
 
                     return Response(ProductTimesRunSerializer(products, many=True).data)

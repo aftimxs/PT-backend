@@ -316,10 +316,54 @@ class CalendarDayShiftSerializer(serializers.Serializer):
 
 
 class PartsMadeSerializer(serializers.Serializer):
+    product_id = serializers.IntegerField()
+    product = serializers.CharField()
+    item_count = serializers.IntegerField()
+    scrap_count = serializers.IntegerField()
+    good_percentage = serializers.FloatField()
+
+
+class TotalPartsMadeDailySerializer(serializers.Serializer):
+    day = serializers.DateField()
+    item_count = serializers.IntegerField()
+    scrap_count = serializers.IntegerField()
+    good_percentage = serializers.FloatField()
+
+
+class TotalPartsMadeWeeklySerializer(serializers.Serializer):
+    week = serializers.IntegerField()
+    item_count = serializers.IntegerField()
+    scrap_count = serializers.IntegerField()
+    good_percentage = serializers.FloatField()
+
+
+class TotalPartsMadeMonthlySerializer(serializers.Serializer):
+    month = serializers.IntegerField()
+    item_count = serializers.IntegerField()
+    scrap_count = serializers.IntegerField()
+    good_percentage = serializers.FloatField()
+
+
+class AccumulatedTotalParts(serializers.Serializer):
+    item_count = serializers.IntegerField()
+    scrap_count = serializers.IntegerField()
+    good_percentage = serializers.FloatField()
+
+
+class PartsMadeByLineSerializer(serializers.Serializer):
     line = serializers.CharField(max_length=10)
     item_count = serializers.IntegerField()
 
 
 class ProductTimesRunSerializer(serializers.Serializer):
-    product = serializers.IntegerField()
+    product_id = serializers.IntegerField()
+    product = serializers.CharField()
     run_count = serializers.IntegerField()
+
+
+class ProductActualRateSerializer(serializers.Serializer):
+    product_id = serializers.IntegerField()
+    product = serializers.CharField()
+    expected_rate = serializers.FloatField()
+    actual_rate = serializers.FloatField()
+    shift_count = serializers.IntegerField()
