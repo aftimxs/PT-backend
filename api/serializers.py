@@ -315,11 +315,21 @@ class CalendarDayShiftSerializer(serializers.Serializer):
     shift = ShiftOnlyOrderSerializer(many=False, read_only=True)
 
 
+class ChartsExtraInfoSerializer(serializers.Serializer):
+    keys = serializers.ListField(child=serializers.CharField(max_length=30))
+    index_by = serializers.ListField(child=serializers.CharField(max_length=30))
+    legend_x = serializers.CharField(max_length=20)
+    legend_y = serializers.CharField(max_length=20)
+    group_mode = serializers.CharField(max_length=20, allow_null=True)
+
+
 class PartsMadeSerializer(serializers.Serializer):
     product_id = serializers.IntegerField()
     product = serializers.CharField()
     item_count = serializers.IntegerField()
+    item_countColor = serializers.CharField(max_length=20)
     scrap_count = serializers.IntegerField()
+    scrap_countColor = serializers.CharField(max_length=20)
     good_percentage = serializers.FloatField()
 
 
@@ -345,6 +355,7 @@ class TotalPartsMadeMonthlySerializer(serializers.Serializer):
 
 
 class AccumulatedTotalParts(serializers.Serializer):
+    product = serializers.CharField(max_length=10)
     item_count = serializers.IntegerField()
     scrap_count = serializers.IntegerField()
     good_percentage = serializers.FloatField()

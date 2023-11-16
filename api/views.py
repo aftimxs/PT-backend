@@ -482,8 +482,16 @@ class ProductStatisticsView(generics.ListAPIView):
         if data_request is not None:
             match data_request:
                 case 'parts-made':
+                    products_request = self.request.query_params.get('products')
+                    if products_request:
+                        products_request = products_request.split(',')
+                        products_queryset = Product.objects.all().filter(part_num__in=products_request)
+                    else:
+                        products_queryset = Product.objects.all()
+
                     products = [{'product_id': product.id, 'product': product.part_num, 'item_count': 0,
-                                 'scrap_count': 0, 'good_percentage': 0} for product in Product.objects.all()]
+                                 'scrap_count': 0, 'good_percentage': 0, 'item_countColor': '#38bcb2',
+                                 'scrap_countColor': "hsl(80, 70%, 50%)"} for product in products_queryset]
                     for product in products:
                         for shift in queryset:
                             if shift.order.values()[0]['product_id'] in product.values():
@@ -493,16 +501,29 @@ class ProductStatisticsView(generics.ListAPIView):
                                                 'scrap_count': bad,
                                                 'good_percentage': round(good/(good+bad), 2)})
 
-                    return Response(PartsMadeSerializer(products, many=True).data)
+                    extras = {'keys': ['item_count', 'scrap_count'], 'index_by': ['product'], 'legend_x': 'Product',
+                              'legend_y': 'Count', 'group_mode': 'grouped'}
+
+                    serializer_list = [PartsMadeSerializer(products, many=True).data,
+                                    ChartsExtraInfoSerializer(extras, many=False).data]
+
+                    return Response(serializer_list)
 
                 case 'accumulated-total':
-                    count = {'item_count': 0, 'scrap_count': 0, 'good_percentage': 0}
-                    for shift in queryset:
-                        good = list(count.values())[0] + shift.total_parts
-                        bad = list(count.values())[1] + shift.total_scrap
-                        count.update({'item_count': good, 'scrap_count': bad, 'good_percentage': round(good/(good+bad), 2)})
+                    count = [{'product': 'All', 'item_count': 0, 'scrap_count': 0, 'good_percentage': 0}]
+                    for x in count:
+                        for shift in queryset:
+                            good = list(x.values())[1] + shift.total_parts
+                            bad = list(x.values())[2] + shift.total_scrap
+                            x.update({'item_count': good, 'scrap_count': bad, 'good_percentage': round(good/(good+bad), 2)})
 
-                    return Response(AccumulatedTotalParts(count).data)
+                    extras = {'keys': ['item_count', 'scrap_count'], 'index_by': ['product'], 'legend_x': 'Product',
+                              'legend_y': 'Count', 'group_mode': 'grouped'}
+
+                    serializer_list = [AccumulatedTotalParts(count, many=True).data,
+                                       ChartsExtraInfoSerializer(extras, many=False).data]
+
+                    return Response(serializer_list)
 
                 case 'accumulated-total-period':
                     period = self.request.query_params.get('period')
@@ -522,7 +543,13 @@ class ProductStatisticsView(generics.ListAPIView):
                                                         'scrap_count': bad,
                                                         'good_percentage': round(good/(good+bad), 2)})
 
-                                return Response(TotalPartsMadeDailySerializer(days, many=True).data)
+                                extras = {'keys': ['item_count', 'scrap_count'], 'index_by': ['day'],
+                                          'legend_x': 'Days', 'legend_y': 'Count'}
+
+                                serializer_list = [TotalPartsMadeDailySerializer(days, many=True).data,
+                                                   ChartsExtraInfoSerializer(extras, many=False).data]
+
+                                return Response(serializer_list)
 
                             case 'weekly':
                                 weeks_range = get_period_days(grouping, period)
@@ -536,7 +563,14 @@ class ProductStatisticsView(generics.ListAPIView):
                                                         'scrap_count': bad,
                                                         'good_percentage': round(good / (good + bad), 2)})
 
-                                return Response(TotalPartsMadeWeeklySerializer(weeks, many=True).data)
+                                extras = {'keys': ['item_count', 'scrap_count'],
+                                          'index_by': ['week'],
+                                          'legend_x': 'Week', 'legend_y': 'Count'}
+
+                                serializer_list = [TotalPartsMadeWeeklySerializer(weeks, many=True).data,
+                                                   ChartsExtraInfoSerializer(extras, many=False).data]
+
+                                return Response(serializer_list)
 
                             case 'monthly':
                                 months_range = get_period_days(grouping, period)
@@ -551,22 +585,48 @@ class ProductStatisticsView(generics.ListAPIView):
                                                          'scrap_count': bad,
                                                          'good_percentage': round(good / (good + bad), 2)})
 
-                                return Response(TotalPartsMadeMonthlySerializer(months, many=True).data)
+                                extras = {'keys': ['item_count', 'scrap_count'],
+                                          'index_by': ['month'],
+                                          'legend_x': 'Month', 'legend_y': 'Count'}
+
+                                serializer_list = [TotalPartsMadeMonthlySerializer(months, many=True).data,
+                                                   ChartsExtraInfoSerializer(extras, many=False).data]
+
+                                return Response(serializer_list)
                     else:
                         return Response({'detail': "Request data 'grouping' is missing"}, status=status.HTTP_400_BAD_REQUEST)
 
                 case 'total-runs':
-                    products = [{'product_id': product.id, 'product': product.part_num, 'run_count': 0} for product in Product.objects.all()]
+                    products_request = self.request.query_params.get('products')
+                    if products_request:
+                        products_request = products_request.split(',')
+                        products_queryset = Product.objects.all().filter(part_num__in=products_request)
+                    else:
+                        products_queryset = Product.objects.all()
+
+                    products = [{'product_id': product.id, 'product': product.part_num, 'run_count': 0} for product in products_queryset]
                     for product in products:
                         for shift in queryset:
                             if shift.order.values()[0]['product_id'] == list(product.values())[0]:
                                 product.update({'run_count': list(product.values())[2] + 1})
 
-                    return Response(ProductTimesRunSerializer(products, many=True).data)
+                    extras = {'keys': ['run_count'], 'index_by': ['product'], 'legend_x': 'Runs', 'legend_y': 'Count'}
+
+                    serializer_list = [ProductTimesRunSerializer(products, many=True).data,
+                                       ChartsExtraInfoSerializer(extras, many=False).data]
+
+                    return Response(serializer_list)
 
                 case 'expected-vs-actual-rate':
+                    products_request = self.request.query_params.get('products')
+                    if products_request:
+                        products_request = products_request.split(',')
+                        products_queryset = Product.objects.all().filter(part_num__in=products_request)
+                    else:
+                        products_queryset = Product.objects.all()
+
                     products = [{'product_id': product.id, 'product': product.part_num, 'expected_rate': product.rate,
-                          'actual_rate': product.rate, 'shift_count': 0} for product in Product.objects.all()]
+                          'actual_rate': product.rate, 'shift_count': 0} for product in products_queryset]
                     for product in products:
                         parts = 0
                         minutes = 0
@@ -579,7 +639,13 @@ class ProductStatisticsView(generics.ListAPIView):
                         if parts != 0 and minutes != 0:
                             product.update({'actual_rate': ((parts/minutes)*60), 'shift_count': shift_count})
 
-                    return Response(ProductActualRateSerializer(products, many=True).data)
+                    extras = {'keys': ['expected_rate', 'actual_rate'], 'index_by': ['product'],
+                              'legend_x': 'Expected vs Actual Rate', 'legend_y': 'Rate', 'group_mode': "grouped"}
+
+                    serializer_list = [ProductActualRateSerializer(products, many=True).data,
+                                       ChartsExtraInfoSerializer(extras, many=False).data]
+
+                    return Response(serializer_list)
 
 
 class LineStatisticsView(generics.ListAPIView):
