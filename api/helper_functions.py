@@ -28,26 +28,26 @@ def get_period_days(grouping, period):
                     days.append(today)
                 case '7days':
                     for x in range(7):
-                        days.append((today - timedelta(days=x)))
+                        days.insert(0, (today - timedelta(days=x)))
                 case '30days':
                     for x in range(30):
-                        days.append((today - timedelta(days=x)))
+                        days.insert(0, (today - timedelta(days=x)))
                 case '60days':
                     for x in range(60):
-                        days.append((today - timedelta(days=x)))
+                        days.insert(0, (today - timedelta(days=x)))
             return days
         case 'weekly':
             match period:
                 case '30days':
                     for x in range(4):
-                        weeks.append((today - timedelta(weeks=x)).isocalendar().week)
+                        weeks.insert(0, (today - timedelta(weeks=x)).isocalendar().week)
                 case '60days':
                     for x in range(8):
-                        weeks.append((today - timedelta(weeks=x)).isocalendar().week)
+                        weeks.insert(0, (today - timedelta(weeks=x)).isocalendar().week)
             return weeks
         case 'monthly':
             match period:
                 case '60days':
                     for x in range(2):
-                        months.append((today - timedelta(weeks=(x*4))).month)
+                        months.insert(0, (today - timedelta(weeks=(x*4))).month)
             return months

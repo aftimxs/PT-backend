@@ -528,20 +528,27 @@ class ProductStatisticsView(generics.ListAPIView):
                 case 'accumulated-total-period':
                     period = self.request.query_params.get('period')
                     grouping = self.request.query_params.get('grouping')
+                    additive = self.request.query_params.get('additive')
 
                     if grouping:
                         match grouping:
                             case 'daily':
                                 days_range = get_period_days(grouping, period)
                                 days = [{'day': x, 'item_count': 0, 'scrap_count': 0, 'good_percentage': 0} for x in days_range]
+                                prev_item_count = 0
+                                prev_scrap_count = 0
                                 for day in days:
+                                    # print(prev_item_count, prev_scrap_count)
                                     for shift in queryset:
                                         if shift.date in day.values():
-                                            good = list(day.values())[1] + shift.total_parts
-                                            bad = list(day.values())[2] + shift.total_scrap
+                                            good = list(day.values())[1] + shift.total_parts + prev_item_count
+                                            bad = list(day.values())[2] + shift.total_scrap + prev_scrap_count
                                             day.update({'item_count': good,
                                                         'scrap_count': bad,
                                                         'good_percentage': round(good/(good+bad), 2)})
+                                            if additive == 'True':
+                                                prev_item_count = good
+                                                prev_scrap_count = bad
 
                                 extras = {'keys': ['item_count', 'scrap_count'], 'index_by': ['day'],
                                           'legend_x': 'Days', 'legend_y': 'Count'}
@@ -554,14 +561,19 @@ class ProductStatisticsView(generics.ListAPIView):
                             case 'weekly':
                                 weeks_range = get_period_days(grouping, period)
                                 weeks = [{'week': x, 'item_count': 0, 'scrap_count': 0, 'good_percentage': 0} for x in weeks_range]
+                                prev_item_count = 0
+                                prev_scrap_count = 0
                                 for week in weeks:
                                     for shift in queryset:
                                         if int(shift.date.isocalendar().week) == list(week.values())[0]:
-                                            good = list(week.values())[1] + shift.total_parts
-                                            bad = list(week.values())[2] + shift.total_scrap
+                                            good = list(week.values())[1] + shift.total_parts + prev_item_count
+                                            bad = list(week.values())[2] + shift.total_scrap + prev_scrap_count
                                             week.update({'item_count': good,
                                                         'scrap_count': bad,
                                                         'good_percentage': round(good / (good + bad), 2)})
+                                            if additive == 'True':
+                                                prev_item_count = good
+                                                prev_scrap_count = bad
 
                                 extras = {'keys': ['item_count', 'scrap_count'],
                                           'index_by': ['week'],
@@ -576,14 +588,19 @@ class ProductStatisticsView(generics.ListAPIView):
                                 months_range = get_period_days(grouping, period)
                                 months = [{'month': x, 'item_count': 0, 'scrap_count': 0, 'good_percentage': 0} for x in
                                          months_range]
+                                prev_item_count = 0
+                                prev_scrap_count = 0
                                 for month in months:
                                     for shift in queryset:
                                         if shift.date.month == list(month.values())[0]:
-                                            good = list(month.values())[1] + shift.total_parts
-                                            bad = list(month.values())[2] + shift.total_scrap
+                                            good = list(month.values())[1] + shift.total_parts + prev_item_count
+                                            bad = list(month.values())[2] + shift.total_scrap + prev_scrap_count
                                             month.update({'item_count': good,
                                                          'scrap_count': bad,
                                                          'good_percentage': round(good / (good + bad), 2)})
+                                            if additive == 'True':
+                                                prev_item_count = good
+                                                prev_scrap_count = bad
 
                                 extras = {'keys': ['item_count', 'scrap_count'],
                                           'index_by': ['month'],
