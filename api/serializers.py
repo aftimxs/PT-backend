@@ -323,6 +323,7 @@ class ChartsExtraInfoSerializer(serializers.Serializer):
     legend_y = serializers.CharField(max_length=20)
     group_mode = serializers.CharField(max_length=20, allow_null=True)
     title = serializers.CharField(max_length=30)
+    subtitle = serializers.CharField(max_length=50)
 
 
 class PartsMadeSerializer(serializers.Serializer):
