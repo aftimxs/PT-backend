@@ -164,9 +164,28 @@ class MachineView(viewsets.ModelViewSet):
 
 
 class ProductView(viewsets.ModelViewSet):
-    queryset = Product.objects.all()
     serializer_class = ProductSerializer
     # permission_classes = ([IsAuthenticated])
+
+    def get_queryset(self):
+        queryset = Product.objects.all()
+        area = self.request.query_params.get('area')
+
+        print(area)
+        if area is not None:
+            match area:
+                case 'Welding':
+                    queryset = queryset.exclude(rate=0)
+                case 'Molding':
+                    queryset = queryset.exclude(molding_rate=0)
+                case 'Autobag':
+                    queryset = queryset.exclude(autobag_rate=0)
+                case 'Pleating':
+                    queryset = queryset.exclude(pleating_rate=0)
+                case _:
+                    queryset = queryset
+
+        return queryset
 
 
 class OrderView(viewsets.ModelViewSet):

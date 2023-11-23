@@ -21,6 +21,9 @@ class Product(models.Model):
     autobag_rate = models.FloatField(null=True)
     molding_rate = models.FloatField(null=True)
 
+    class Meta:
+        ordering = ['part_num']
+
 
 class Operator(models.Model):
     first_name = models.CharField(max_length=30, null=False)

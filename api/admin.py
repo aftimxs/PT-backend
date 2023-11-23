@@ -15,7 +15,7 @@ class MachineAdmin(admin.ModelAdmin):
 
 
 class ProductAdmin(admin.ModelAdmin):
-    list_display = ('id', 'part_num', 'rate')
+    list_display = ('id', 'part_num', 'rate', 'pleating_rate', 'autobag_rate', 'molding_rate')
 
 
 class OrderAdmin(admin.ModelAdmin):
