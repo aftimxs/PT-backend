@@ -166,7 +166,7 @@ class MachineView(viewsets.ModelViewSet):
 class ProductView(viewsets.ModelViewSet):
     queryset = Product.objects.all()
     serializer_class = ProductSerializer
-    permission_classes = ([IsAuthenticated])
+    # permission_classes = ([IsAuthenticated])
 
 
 class OrderView(viewsets.ModelViewSet):
