@@ -16,7 +16,7 @@ class ProductionLine(models.Model):
 
 class Product(models.Model):
     part_num = models.CharField(max_length=20, unique=True)
-    rate = models.FloatField()
+    rate = models.FloatField(null=True)
     pleating_rate = models.FloatField(null=True)
     autobag_rate = models.FloatField(null=True)
     molding_rate = models.FloatField(null=True)

@@ -307,8 +307,11 @@ class TestView(generics.ListCreateAPIView):
 
             # DB DATA
             previous_bar = TimelineBar.objects.filter(shift=shift).values().last()
+            rate_type = getattr(Shift.objects.get(id=shift), 'line')
             rate = Order.objects.filter(shift=shift).values('product__rate')[0]['product__rate']
             shift_num = getattr(Shift.objects.get(id=shift), 'number')
+
+            print(rate_type)
 
             # DATA FOR BAR TYPE
             minute_rate = rate / 60
