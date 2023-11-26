@@ -121,7 +121,7 @@ class Order(models.Model):
 class ProductionInfo(models.Model):
     hour = models.TimeField(null=True)
     minute = models.TimeField()
-    item_count = models.IntegerField()
+    item_count = models.FloatField()
     line = models.ForeignKey(ProductionLine, related_name='info', default=0, on_delete=models.CASCADE)
     shift = models.ForeignKey(Shift, related_name='info',  default=0, on_delete=models.CASCADE)
 
@@ -143,7 +143,7 @@ class TimelineBar(models.Model):
     end_time = models.TimeField()
     type = models.IntegerField(choices=bar_type)
     bar_length = models.IntegerField()
-    parts_made = models.IntegerField()
+    parts_made = models.FloatField()
     hour = models.TimeField(null=True)
     has_scrap = models.BooleanField(default=False)
     loss = models.FloatField(default=0)

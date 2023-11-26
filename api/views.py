@@ -171,7 +171,6 @@ class ProductView(viewsets.ModelViewSet):
         queryset = Product.objects.all()
         area = self.request.query_params.get('area')
 
-        print(area)
         if area is not None:
             match area:
                 case 'Welding':
@@ -485,6 +484,80 @@ class BarCommentsView(viewsets.ModelViewSet):
     queryset = BarComments.objects.all()
     serializer_class = BarCommentsSerializer
     # permission_classes = ([IsAuthenticated])
+
+
+class HourTotalPostView(generics.CreateAPIView):
+    serializer_class = TotalHourSerializer
+    queryset = ProductionInfo.objects.all().order_by('minute')
+    # permission_classes = ([IsAuthenticated])
+
+    def post(self, request, *args, **kwargs):
+        serializer = self.serializer_class(data=request.data)
+        if serializer.is_valid():
+            shift = request.data['shift']
+            total = float(request.data['total'])
+            start = request.data['hour']
+
+            rate = Order.objects.get(shift=shift).rate
+            line = ProductionLine.objects.get(shift=shift)
+            f_min = datetime.strptime(start, "%H:%M:%S")
+            end = (datetime.strptime(start, "%H:%M:%S") + timedelta(minutes=59)).time()
+
+            # CREATE NEW BAR
+            def new_bar(current_type, length):
+                bar_id = start.replace(':', '') + shift
+                parts_diff = total - rate
+
+                # Update shift type and part count
+                shift_to_update = Shift.objects.get(id=shift)
+                shift_to_update.status = current_type
+                shift_to_update.total_parts = shift_to_update.total_parts + total
+
+                if current_type == 2:
+                    shift_to_update.total_slow = shift_to_update.total_slow + 1
+                elif current_type == 3:
+                    shift_to_update.total_stopped = shift_to_update.total_stopped + 1
+
+                shift_to_update.save()
+
+                create_missing_minutes(f_min)
+
+                new = TimelineBar.objects.create(
+                    id=bar_id,
+                    shift=Shift.objects.get(id=shift),
+                    start_time=start,
+                    end_time=end,
+                    type=current_type,
+                    bar_length=length,
+                    parts_made=total,
+                    hour=start,
+                    loss=parts_diff,
+                )
+                new.save()
+
+            print(total/60.0)
+
+            def create_missing_minutes(first_min):
+                for i in range(int(60)):
+                    m = first_min + timedelta(minutes=i)
+                    missing_minute = ProductionInfo.objects.create(
+                        hour=datetime.strptime(str(m.hour), "%H").time(),
+                        minute=m,
+                        item_count=round(total/60.0, 2),
+                        line=line,
+                        shift=Shift.objects.get(id=request.data['shift']),
+                    )
+                    missing_minute.save()
+
+            if total >= rate:
+                new_bar(1, 60)
+            elif rate > total > 0:
+                new_bar(2, 60)
+            elif total == 0:
+                new_bar(3, 60)
+
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
 class ProductStatisticsView(generics.ListAPIView):

@@ -400,3 +400,9 @@ class ProductActualRateSerializer(serializers.Serializer):
     expected = serializers.FloatField()
     actual = serializers.FloatField()
     shift_count = serializers.IntegerField()
+
+
+class TotalHourSerializer(serializers.Serializer):
+    shift = ShiftSerializer(many=False, read_only=True)
+    total = serializers.IntegerField()
+    hour = serializers.TimeField()
