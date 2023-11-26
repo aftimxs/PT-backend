@@ -9,6 +9,8 @@ from django.contrib.auth.password_validation import validate_password
 from datetime import date, datetime, timedelta
 from django.utils import timezone
 
+from .helper_functions import match_area_rate
+
 
 class ProductSerializer(serializers.ModelSerializer):
     class Meta:
@@ -17,6 +19,30 @@ class ProductSerializer(serializers.ModelSerializer):
 
 
 class OrderSerializer(serializers.ModelSerializer):
+
+    def create(self, validated_data):
+        product = validated_data.get('product')
+        line = validated_data.get('line')
+
+        validated_data = match_area_rate(line.area, validated_data, product)
+
+        return Order.objects.create(**validated_data)
+
+    def update(self, instance, validated_data):
+        product = validated_data.get('product')
+
+        if product != instance.product:
+            line = validated_data.get('line')
+            validated_data = match_area_rate(line.area, validated_data, product)
+
+        # list of fields in validated data
+        update_fields = [k for k in validated_data]
+        # update the data on those fields
+        for k, v in validated_data.items():
+            setattr(instance, k, v)
+
+        instance.save(update_fields=update_fields)
+        return instance
 
     class Meta:
         model = Order
@@ -97,6 +123,29 @@ class TimelineBarSerializer(serializers.ModelSerializer):
     bar_comments = BarCommentsSerializer(many=True, read_only=True)
     scrap = ScrapSerializer(many=True, read_only=True)
 
+    header = serializers.SerializerMethodField()
+    background = serializers.SerializerMethodField()
+
+    def get_header(self, obj):
+        match obj.type:
+            case 1:
+                return 'Good Rate'
+            case 2:
+                return 'Speed Loss'
+            case 3:
+                return 'Downtime'
+
+    def get_background(self, obj):
+        match obj.type:
+            case 1:
+                return '#198754'
+            case 2:
+                return '#ffc107'
+            case 3:
+                return '#dc3545'
+            case 4:
+                return 'rgb(61,61,61)'
+
     class Meta:
         model = TimelineBar
         fields = '__all__'
@@ -120,15 +169,7 @@ class ShiftSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
     def get_active(self, obj):
-        if int(((timezone.now()-timedelta(hours=8)).date() - obj.date).total_seconds()) == 0:
-            if obj.number == 1 and 6 < (timezone.now()-timedelta(hours=8)).hour < 15:
-                return True
-            elif obj.number == 2 and 17 < (timezone.now()-timedelta(hours=8)).hour < 24:
-                return True
-            else:
-                return False
-        else:
-            return False
+        return obj.active
 
     def get_start(self, obj):
         if obj.number == 1:
@@ -143,16 +184,10 @@ class ShiftSerializer(serializers.ModelSerializer):
             return "24:00"
 
     def get_passed(self, obj):
-        if (timezone.now()-timedelta(hours=8)).date() >= obj.date:
-            return True
-        else:
-            return False
+        return obj.passed
 
     def get_has_data(self, obj):
-        if ProductionInfo.objects.filter(shift=obj.id):
-            return True
-        else:
-            return False
+        return obj.has_data
 
 
 class ShiftOnlyOrderSerializer(serializers.ModelSerializer):
@@ -169,15 +204,7 @@ class ShiftOnlyOrderSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
     def get_active(self, obj):
-        if int(((timezone.now()-timedelta(hours=8)).date() - obj.date).total_seconds()) == 0:
-            if obj.number == 1 and 6 < (timezone.now()-timedelta(hours=8)).hour < 15:
-                return True
-            elif obj.number == 2 and 17 < (timezone.now()-timedelta(hours=8)).hour < 24:
-                return True
-            else:
-                return False
-        else:
-            return False
+        return obj.active
 
     def get_start(self, obj):
         if obj.number == 1:
@@ -192,16 +219,10 @@ class ShiftOnlyOrderSerializer(serializers.ModelSerializer):
             return "24:00"
 
     def get_passed(self, obj):
-        if (timezone.now()-timedelta(hours=8)).date() >= obj.date:
-            return True
-        else:
-            return False
+        return obj.passed
 
     def get_has_data(self, obj):
-        if ProductionInfo.objects.filter(shift=obj.id):
-            return True
-        else:
-            return False
+        return obj.has_data
 
 
 class ProductionLineSerializer(serializers.ModelSerializer):

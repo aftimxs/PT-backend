@@ -11,17 +11,17 @@ def parts_filter(products_request):
         return Product.objects.all()
 
 
-def determine_period(period, queryset):
+def determine_period(period, area, queryset):
     today = (timezone.now() - timedelta(hours=8)).date()
     match period:
         case 'today':
-            queryset = (queryset.filter(date=today))
+            queryset = (queryset.filter(line__area=area, date=today))
         case '7days':
-            queryset = (queryset.filter(date__range=[today - timedelta(days=7), today]))
+            queryset = (queryset.filter(line__area=area, date__range=[today - timedelta(days=7), today]))
         case '30days':
-            queryset = (queryset.filter(date__range=[today - timedelta(days=30), today]))
+            queryset = (queryset.filter(line__area=area, date__range=[today - timedelta(days=30), today]))
         case '60days':
-            queryset = (queryset.filter(date__range=[today - timedelta(days=60), today]))
+            queryset = (queryset.filter(line__area=area, date__range=[today - timedelta(days=60), today]))
     return queryset
 
 
@@ -89,3 +89,18 @@ def array_vs_queryset(period_type, period_range, queryset, additive):
             prev_scrap_count = list(array_item.values())[2]
 
     return array
+
+
+def match_area_rate(area, validated_data, product):
+    match area:
+        case 'Welding':
+            validated_data.update(rate=product.rate)
+        case 'Molding':
+            validated_data.update(rate=product.molding_rate)
+        case 'Autobag':
+            validated_data.update(rate=product.autobag_rate)
+        case 'Pleating':
+            validated_data.update(rate=product.pleating_rate)
+
+    return validated_data
+

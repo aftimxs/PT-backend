@@ -191,7 +191,7 @@ class ProductView(viewsets.ModelViewSet):
 class OrderView(viewsets.ModelViewSet):
     queryset = Order.objects.all()
     serializer_class = OrderSerializer
-    permission_classes = ([IsAuthenticated])
+    # permission_classes = ([IsAuthenticated])
 
 
 class OperatorView(viewsets.ModelViewSet):
@@ -326,11 +326,8 @@ class TestView(generics.ListCreateAPIView):
 
             # DB DATA
             previous_bar = TimelineBar.objects.filter(shift=shift).values().last()
-            rate_type = getattr(Shift.objects.get(id=shift), 'line')
-            rate = Order.objects.filter(shift=shift).values('product__rate')[0]['product__rate']
+            rate = Order.objects.get(shift=shift).rate
             shift_num = getattr(Shift.objects.get(id=shift), 'number')
-
-            print(rate_type)
 
             # DATA FOR BAR TYPE
             minute_rate = rate / 60
@@ -356,6 +353,7 @@ class TestView(generics.ListCreateAPIView):
             def new_bar(start, end, current_type, length, part_count):
                 bar_id = start.replace(':', '') + shift
                 hour = start.split(':')
+                parts_diff = part_count-minute_rate
 
                 # Update shift type and part count
                 shift_to_update = Shift.objects.get(id=shift)
@@ -377,7 +375,8 @@ class TestView(generics.ListCreateAPIView):
                     type=current_type,
                     bar_length=length,
                     parts_made=part_count,
-                    hour=hour[0]+':00:00'
+                    hour=hour[0]+':00:00',
+                    loss=parts_diff,
                 )
                 new.save()
 
@@ -385,11 +384,13 @@ class TestView(generics.ListCreateAPIView):
                 if current_type != prev_type or this_minute.hour != prev_minute.hour or not on_time:
                     new_bar(minute, minute, current_type, 1, parts)
                 else:
+                    parts_diff = parts - minute_rate
                     # UPDATE PREVIOUS BAR
                     bar_to_update = TimelineBar.objects.get(id=prev_id)
                     bar_to_update.end_time = minute
                     bar_to_update.bar_length = bar_to_update.bar_length + 1
                     bar_to_update.parts_made = bar_to_update.parts_made + parts
+                    bar_to_update.loss = bar_to_update.loss + parts_diff
                     bar_to_update.save()
 
                     # Update shift part count
@@ -492,15 +493,18 @@ class ProductStatisticsView(generics.ListAPIView):
     def get_queryset(self):
         queryset = Shift.objects.all()
         period = self.request.query_params.get('period')
+        area = self.request.query_params.get('area')
 
-        if period is not None:
-            queryset = determine_period(period, queryset)
+        if period is not None and area is not None:
+            queryset = determine_period(period, area, queryset)
             return queryset.exclude(total_parts__exact=0)
 
     def get(self, request, *args, **kwargs):
         queryset = self.get_queryset()
+        bar_type = self.request.query_params.get('bar_type')
         data_request = self.request.query_params.get('data_request')
         period = self.request.query_params.get('period')
+        area = self.request.query_params.get('area')
 
         match period:
             case 'today':
@@ -512,146 +516,165 @@ class ProductStatisticsView(generics.ListAPIView):
             case '60days':
                 sub_period = 'the last 60 days'
 
-        if data_request is not None:
-            match data_request:
-                case 'parts-made':
-                    products_request = self.request.query_params.get('products')
-                    products_queryset = parts_filter(products_request)
+        if bar_type is not None:
+            match bar_type:
+                case 'Bar':
+                    if data_request is not None:
+                        match data_request:
+                            case 'parts-made':
+                                products_request = self.request.query_params.get('products')
+                                products_queryset = parts_filter(products_request)
 
-                    products = [{'product_id': product.id, 'product': product.part_num, 'good': 0,
-                                 'scrap': 0, 'good_percentage': 0} for product in products_queryset]
-                    for product in products:
-                        for shift in queryset:
-                            if shift.order.values()[0]['product_id'] in product.values():
-                                good = list(product.values())[2] + shift.total_parts
-                                bad = list(product.values())[3] + shift.total_scrap
-                                product.update({'good': good, 'scrap': bad,
-                                                'good_percentage': round(good/(good+bad), 2)})
+                                products = [{'product_id': product.id, 'product': product.part_num, 'good': 0,
+                                             'scrap': 0, 'good_percentage': 0} for product in products_queryset]
+                                for product in products:
+                                    for shift in queryset:
+                                        if shift.order.values()[0]['product_id'] in product.values():
+                                            good = list(product.values())[2] + shift.total_parts
+                                            bad = list(product.values())[3] + shift.total_scrap
+                                            product.update({'good': good, 'scrap': bad,
+                                                            'good_percentage': round(good/(good+bad), 2)})
 
-                    extras = {'keys': ['good', 'scrap'], 'index_by': ['product'], 'color': ['#66bb6a', '#d32f2f'],
-                              'legend_x': 'Product', 'legend_y': 'Count', 'group_mode': 'grouped',
-                              'title': 'Pieces by part', 'subtitle': f'{products_request} for {sub_period}'}
+                                extras = {'keys': ['good', 'scrap'], 'index_by': ['product'], 'color': ['#66bb6a', '#d32f2f'],
+                                          'legend_x': 'Product', 'legend_y': 'Count', 'group_mode': 'grouped',
+                                          'title': f'{area.upper()} pieces by part', 'subtitle': f'{products_request} for {sub_period}'}
 
-                    serializer_list = [PartsMadeSerializer(products, many=True).data,
-                                    ChartsExtraInfoSerializer(extras, many=False).data]
+                                serializer_list = [PartsMadeSerializer(products, many=True).data,
+                                                ChartsExtraInfoSerializer(extras, many=False).data]
 
-                    return Response(serializer_list)
+                                return Response(serializer_list)
 
-                case 'accumulated-total':
-                    count = [{'product': 'All', 'good': 0, 'scrap': 0, 'good_percentage': 0}]
-                    for x in count:
-                        for shift in queryset:
-                            good = list(x.values())[1] + shift.total_parts
-                            bad = list(x.values())[2] + shift.total_scrap
-                            x.update({'good': good, 'scrap': bad, 'good_percentage': round(good/(good+bad), 2)})
+                            case 'accumulated-total':
+                                count = [{'product': 'All', 'good': 0, 'scrap': 0, 'good_percentage': 0}]
+                                for x in count:
+                                    for shift in queryset:
+                                        good = list(x.values())[1] + shift.total_parts
+                                        bad = list(x.values())[2] + shift.total_scrap
+                                        x.update({'good': good, 'scrap': bad, 'good_percentage': round(good/(good+bad), 2)})
 
-                    extras = {'keys': ['good', 'scrap'], 'index_by': ['product'], 'legend_x': 'Product',
-                              'legend_y': 'Count', 'group_mode': 'grouped', 'color': ['#66bb6a', '#d32f2f'],
-                              'title': 'Total accumulated pieces', 'subtitle': f'for {sub_period}'}
+                                extras = {'keys': ['good', 'scrap'], 'index_by': ['product'], 'legend_x': 'Product',
+                                          'legend_y': 'Count', 'group_mode': 'grouped', 'color': ['#66bb6a', '#d32f2f'],
+                                          'title': f'{area.upper()} total accumulated pieces', 'subtitle': f'for {sub_period}'}
 
-                    serializer_list = [AccumulatedTotalParts(count, many=True).data,
-                                       ChartsExtraInfoSerializer(extras, many=False).data]
-
-                    return Response(serializer_list)
-
-                case 'accumulated-total-period':
-                    period = self.request.query_params.get('period')
-                    grouping = self.request.query_params.get('grouping')
-                    additive = self.request.query_params.get('additive')
-
-                    if grouping:
-                        sub_additive = 'Additive' if additive == 'True' else 'Non-Additive'
-                        match grouping:
-                            case 'daily':
-                                days_range = get_period_days(grouping, period)
-                                response_array = array_vs_queryset('day', days_range, queryset, additive)
-
-                                extras = {'keys': ['good', 'scrap'], 'index_by': ['day'],
-                                          'legend_x': 'Days', 'legend_y': 'Count', 'color': ['#66bb6a', '#d32f2f'],
-                                          'title': 'Daily accumulated pieces',
-                                          'subtitle': f'{sub_additive} for {sub_period}'}
-
-                                serializer_list = [TotalPartsMadeDailySerializer(response_array, many=True).data,
+                                serializer_list = [AccumulatedTotalParts(count, many=True).data,
                                                    ChartsExtraInfoSerializer(extras, many=False).data]
 
                                 return Response(serializer_list)
 
-                            case 'weekly':
-                                weeks_range = get_period_days(grouping, period)
-                                response_array = array_vs_queryset('week', weeks_range, queryset, additive)
+                            case 'accumulated-total-period':
+                                period = self.request.query_params.get('period')
+                                grouping = self.request.query_params.get('grouping')
+                                additive = self.request.query_params.get('additive')
 
-                                extras = {'keys': ['good', 'scrap'],
-                                          'index_by': ['week'],
-                                          'legend_x': 'Week', 'legend_y': 'Count', 'color': ['#66bb6a', '#d32f2f'],
-                                          'title': 'Weekly accumulated pieces', 'subtitle': f'{sub_additive} for {sub_period}'}
+                                if grouping:
+                                    sub_additive = 'Additive' if additive == 'True' else 'Non-Additive'
+                                    match grouping:
+                                        case 'daily':
+                                            days_range = get_period_days(grouping, period)
+                                            response_array = array_vs_queryset('day', days_range, queryset, additive)
 
-                                serializer_list = [TotalPartsMadeWeeklySerializer(response_array, many=True).data,
+                                            extras = {'keys': ['good', 'scrap'], 'index_by': ['day'],
+                                                      'legend_x': 'Days', 'legend_y': 'Count', 'color': ['#66bb6a', '#d32f2f'],
+                                                      'title': f'{area.upper()} daily accumulated pieces',
+                                                      'subtitle': f'{sub_additive} for {sub_period}'}
+
+                                            serializer_list = [TotalPartsMadeDailySerializer(response_array, many=True).data,
+                                                               ChartsExtraInfoSerializer(extras, many=False).data]
+
+                                            return Response(serializer_list)
+
+                                        case 'weekly':
+                                            weeks_range = get_period_days(grouping, period)
+                                            response_array = array_vs_queryset('week', weeks_range, queryset, additive)
+
+                                            extras = {'keys': ['good', 'scrap'],
+                                                      'index_by': ['week'],
+                                                      'legend_x': 'Week', 'legend_y': 'Count', 'color': ['#66bb6a', '#d32f2f'],
+                                                      'title': f'{area.upper()} weekly accumulated pieces', 'subtitle': f'{sub_additive} for {sub_period}'}
+
+                                            serializer_list = [TotalPartsMadeWeeklySerializer(response_array, many=True).data,
+                                                               ChartsExtraInfoSerializer(extras, many=False).data]
+
+                                            return Response(serializer_list)
+
+                                        case 'monthly':
+                                            months_range = get_period_days(grouping, period)
+                                            response_array = array_vs_queryset('month', months_range, queryset, additive)
+
+                                            extras = {'keys': ['good', 'scrap'],
+                                                      'index_by': ['month'],
+                                                      'legend_x': 'Month', 'legend_y': 'Count', 'color': ['#66bb6a', '#d32f2f'],
+                                                      'title': f'{area.upper()} monthly accumulated pieces', 'subtitle': f'{sub_additive} for {sub_period}'}
+
+                                            serializer_list = [TotalPartsMadeMonthlySerializer(response_array, many=True).data,
+                                                               ChartsExtraInfoSerializer(extras, many=False).data]
+
+                                            return Response(serializer_list)
+                                else:
+                                    return Response({'detail': "Request data 'grouping' is missing"}, status=status.HTTP_400_BAD_REQUEST)
+
+                            case 'total-runs':
+                                products_request = self.request.query_params.get('products')
+                                products_queryset = parts_filter(products_request)
+
+                                products = [{'product_id': product.id, 'product': product.part_num, 'runs': 0} for product in products_queryset]
+                                for product in products:
+                                    for shift in queryset:
+                                        if shift.order.values()[0]['product_id'] == list(product.values())[0]:
+                                            product.update({'runs': list(product.values())[2] + 1})
+
+                                extras = {'keys': ['runs'], 'index_by': ['product'], 'legend_x': 'Runs', 'legend_y': 'Count',
+                                          'color': ['#0288d1'], 'title': f'{area.upper()} total runs',
+                                          'subtitle': f'{products_request} for {sub_period}'}
+
+                                serializer_list = [ProductTimesRunSerializer(products, many=True).data,
                                                    ChartsExtraInfoSerializer(extras, many=False).data]
 
                                 return Response(serializer_list)
 
-                            case 'monthly':
-                                months_range = get_period_days(grouping, period)
-                                response_array = array_vs_queryset('month', months_range, queryset, additive)
+                            case 'expected-vs-actual-rate':
+                                products_request = self.request.query_params.get('products')
+                                products_queryset = parts_filter(products_request)
 
-                                extras = {'keys': ['good', 'scrap'],
-                                          'index_by': ['month'],
-                                          'legend_x': 'Month', 'legend_y': 'Count', 'color': ['#66bb6a', '#d32f2f'],
-                                          'title': 'Monthly accumulated pieces', 'subtitle': f'{sub_additive} for {sub_period}'}
+                                match area:
+                                    case 'Welding':
+                                        products = [{'product_id': product.id, 'product': product.part_num,
+                                                     'expected': product.rate, 'actual': product.rate, 'shift_count': 0}
+                                                    for product in products_queryset]
+                                    case 'Molding':
+                                        products = [{'product_id': product.id, 'product': product.part_num,
+                                                     'expected': product.molding_rate, 'actual': product.molding_rate, 'shift_count': 0}
+                                                    for product in products_queryset]
+                                    case 'Autobag':
+                                        products = [{'product_id': product.id, 'product': product.part_num,
+                                                     'expected': product.autobag_rate, 'actual': product.autobag_rate, 'shift_count': 0}
+                                                    for product in products_queryset]
+                                    case 'Pleating':
+                                        products = [{'product_id': product.id, 'product': product.part_num,
+                                                     'expected': product.pleating_rate, 'actual': product.pleating_rate, 'shift_count': 0}
+                                                    for product in products_queryset]
 
-                                serializer_list = [TotalPartsMadeMonthlySerializer(response_array, many=True).data,
+                                for product in products:
+                                    parts = 0
+                                    minutes = 0
+                                    shift_count = 0
+                                    for shift in queryset:
+                                        if shift.order.values()[0]['product_id'] == list(product.values())[0]:
+                                            parts = parts + (shift.total_parts-shift.total_scrap)
+                                            minutes = minutes + shift.active_minutes
+                                            shift_count += 1
+                                    if parts != 0 and minutes != 0:
+                                        product.update({'actual': ((parts/minutes)*60), 'shift_count': shift_count})
+
+                                extras = {'keys': ['expected', 'actual'], 'index_by': ['product'],
+                                          'legend_x': 'Expected vs Actual Rate', 'legend_y': 'Rate', 'group_mode': "grouped",
+                                          'color': ['#66bb6a', '#0288d1'], 'title': f'{area.upper()} expected vs Actual rate',
+                                          'subtitle': f'{products_request} for {sub_period}'}
+
+                                serializer_list = [ProductActualRateSerializer(products, many=True).data,
                                                    ChartsExtraInfoSerializer(extras, many=False).data]
 
                                 return Response(serializer_list)
-                    else:
-                        return Response({'detail': "Request data 'grouping' is missing"}, status=status.HTTP_400_BAD_REQUEST)
-
-                case 'total-runs':
-                    products_request = self.request.query_params.get('products')
-                    products_queryset = parts_filter(products_request)
-
-                    products = [{'product_id': product.id, 'product': product.part_num, 'runs': 0} for product in products_queryset]
-                    for product in products:
-                        for shift in queryset:
-                            if shift.order.values()[0]['product_id'] == list(product.values())[0]:
-                                product.update({'runs': list(product.values())[2] + 1})
-
-                    extras = {'keys': ['runs'], 'index_by': ['product'], 'legend_x': 'Runs', 'legend_y': 'Count',
-                              'color': ['#0288d1'], 'title': 'Total runs',
-                              'subtitle': f'{products_request} for {sub_period}'}
-
-                    serializer_list = [ProductTimesRunSerializer(products, many=True).data,
-                                       ChartsExtraInfoSerializer(extras, many=False).data]
-
-                    return Response(serializer_list)
-
-                case 'expected-vs-actual-rate':
-                    products_request = self.request.query_params.get('products')
-                    products_queryset = parts_filter(products_request)
-
-                    products = [{'product_id': product.id, 'product': product.part_num, 'expected': product.rate,
-                          'actual': product.rate, 'shift_count': 0} for product in products_queryset]
-                    for product in products:
-                        parts = 0
-                        minutes = 0
-                        shift_count = 0
-                        for shift in queryset:
-                            if shift.order.values()[0]['product_id'] == list(product.values())[0]:
-                                parts = parts + (shift.total_parts-shift.total_scrap)
-                                minutes = minutes + shift.active_minutes
-                                shift_count += 1
-                        if parts != 0 and minutes != 0:
-                            product.update({'actual': ((parts/minutes)*60), 'shift_count': shift_count})
-
-                    extras = {'keys': ['expected', 'actual'], 'index_by': ['product'],
-                              'legend_x': 'Expected vs Actual Rate', 'legend_y': 'Rate', 'group_mode': "grouped",
-                              'color': ['#66bb6a', '#0288d1'], 'title': 'Expected vs Actual rate',
-                              'subtitle': f'{products_request} for {sub_period}'}
-
-                    serializer_list = [ProductActualRateSerializer(products, many=True).data,
-                                       ChartsExtraInfoSerializer(extras, many=False).data]
-
-                    return Response(serializer_list)
 
 
 class LineStatisticsView(generics.ListAPIView):

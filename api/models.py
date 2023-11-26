@@ -146,6 +146,7 @@ class TimelineBar(models.Model):
     parts_made = models.IntegerField()
     hour = models.TimeField(null=True)
     has_scrap = models.BooleanField(default=False)
+    loss = models.FloatField(default=0)
 
     class Meta:
         ordering = ['start_time']
