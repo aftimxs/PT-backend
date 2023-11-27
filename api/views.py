@@ -712,19 +712,19 @@ class ProductStatisticsView(generics.ListAPIView):
                                 match area:
                                     case 'Welding':
                                         products = [{'product_id': product.id, 'product': product.part_num,
-                                                     'expected': product.rate, 'actual': product.rate, 'shift_count': 0}
+                                                     'expected': round(product.rate, 2), 'actual': product.rate, 'shift_count': 0}
                                                     for product in products_queryset]
                                     case 'Molding':
                                         products = [{'product_id': product.id, 'product': product.part_num,
-                                                     'expected': product.molding_rate, 'actual': product.molding_rate, 'shift_count': 0}
+                                                     'expected': round(product.molding_rate, 2), 'actual': product.molding_rate, 'shift_count': 0}
                                                     for product in products_queryset]
                                     case 'Autobag':
                                         products = [{'product_id': product.id, 'product': product.part_num,
-                                                     'expected': product.autobag_rate, 'actual': product.autobag_rate, 'shift_count': 0}
+                                                     'expected': round(product.autobag_rate, 2), 'actual': product.autobag_rate, 'shift_count': 0}
                                                     for product in products_queryset]
                                     case 'Pleating':
                                         products = [{'product_id': product.id, 'product': product.part_num,
-                                                     'expected': product.pleating_rate, 'actual': product.pleating_rate, 'shift_count': 0}
+                                                     'expected': round(product.pleating_rate, 2), 'actual': product.pleating_rate, 'shift_count': 0}
                                                     for product in products_queryset]
 
                                 for product in products:
@@ -737,7 +737,7 @@ class ProductStatisticsView(generics.ListAPIView):
                                             minutes = minutes + shift.active_minutes
                                             shift_count += 1
                                     if parts != 0 and minutes != 0:
-                                        product.update({'actual': ((parts/minutes)*60), 'shift_count': shift_count})
+                                        product.update({'actual': round(((parts/minutes)*60), 2), 'shift_count': shift_count})
 
                                 extras = {'keys': ['expected', 'actual'], 'index_by': ['product'],
                                           'legend_x': 'Expected vs Actual Rate', 'legend_y': 'Rate', 'group_mode': "grouped",
