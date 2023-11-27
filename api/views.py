@@ -352,7 +352,7 @@ class TestView(generics.ListCreateAPIView):
             def new_bar(start, end, current_type, length, part_count):
                 bar_id = start.replace(':', '') + shift
                 hour = start.split(':')
-                parts_diff = part_count-minute_rate
+                parts_diff = round(part_count-minute_rate, 2)
 
                 # Update shift type and part count
                 shift_to_update = Shift.objects.get(id=shift)
@@ -383,7 +383,7 @@ class TestView(generics.ListCreateAPIView):
                 if current_type != prev_type or this_minute.hour != prev_minute.hour or not on_time:
                     new_bar(minute, minute, current_type, 1, parts)
                 else:
-                    parts_diff = parts - minute_rate
+                    parts_diff = round(parts - minute_rate, 2)
                     # UPDATE PREVIOUS BAR
                     bar_to_update = TimelineBar.objects.get(id=prev_id)
                     bar_to_update.end_time = minute
@@ -506,7 +506,7 @@ class HourTotalPostView(generics.CreateAPIView):
             # CREATE NEW BAR
             def new_bar(current_type, length):
                 bar_id = start.replace(':', '') + shift
-                parts_diff = total - rate
+                parts_diff = round(total - rate, 2)
 
                 # Update shift type and part count
                 shift_to_update = Shift.objects.get(id=shift)
