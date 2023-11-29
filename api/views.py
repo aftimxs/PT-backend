@@ -63,11 +63,11 @@ class CalendarLookupView(viewsets.ModelViewSet):
         year = self.request.query_params.get('year')
         month = self.request.query_params.get('month')
 
-        if year is not None and month is not None:
+        if year is not None and month is not None and area is not None:
             if area == 'All':
                 queryset = Shift.objects.all().filter(date__year=year, date__month=month)
             else:
-                queryset = Shift.objects.all().filter(date__year=year, date__month=month)
+                queryset = Shift.objects.all().filter(line__area=area, date__year=year, date__month=month)
         return queryset
 
     def list(self, request, *args, **kwargs):
@@ -121,11 +121,11 @@ class CalendarDayLookupView(viewsets.ModelViewSet):
         month = self.request.query_params.get('month')
         day = self.request.query_params.get('day')
 
-        if year is not None and month is not None and day is not None:
+        if year is not None and month is not None and day is not None and area is not None:
             if area == 'All':
                 queryset = Shift.objects.all().filter(date__year=year, date__month=month, date__day=day)
             else:
-                queryset = Shift.objects.all().filter(date__year=year, date__month=month, date__day=day)
+                queryset = Shift.objects.all().filter(line__area=area, date__year=year, date__month=month, date__day=day)
         return queryset
 
     def list(self, request, *args, **kwargs):
@@ -534,8 +534,6 @@ class HourTotalPostView(generics.CreateAPIView):
                     loss=parts_diff,
                 )
                 new.save()
-
-            print(total/60.0)
 
             def create_missing_minutes(first_min):
                 for i in range(int(60)):
