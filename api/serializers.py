@@ -1,13 +1,9 @@
-import uuid
-
 from django.contrib.auth.tokens import PasswordResetTokenGenerator
 from rest_framework import serializers
 from .models import *
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from rest_framework.validators import UniqueValidator
 from django.contrib.auth.password_validation import validate_password
-from datetime import date, datetime, timedelta
-from django.utils import timezone
 
 from .helper_functions import match_area_rate
 
@@ -78,8 +74,10 @@ class ScrapSerializer(serializers.ModelSerializer):
             if instance.pieces:
                 difference = pieces - instance.pieces
                 shift_to_update.total_scrap = shift_to_update.total_scrap + difference
+                shift_to_update.bars_scrap = shift_to_update.bars_scrap + difference
             else:
                 shift_to_update.total_scrap = shift_to_update.total_scrap + pieces
+                shift_to_update.bars_scrap = shift_to_update.bars_scrap + pieces
             shift_to_update.save()
 
         # remove id because its PK
@@ -159,8 +157,6 @@ class ShiftSerializer(serializers.ModelSerializer):
     timelineBar = TimelineBarSerializer(many=True, read_only=True)
 
     active = serializers.SerializerMethodField()
-    start = serializers.SerializerMethodField()
-    end = serializers.SerializerMethodField()
     passed = serializers.SerializerMethodField()
     has_data = serializers.SerializerMethodField()
 
@@ -170,18 +166,6 @@ class ShiftSerializer(serializers.ModelSerializer):
 
     def get_active(self, obj):
         return obj.active
-
-    def get_start(self, obj):
-        if obj.number == 1:
-            return "06:00"
-        elif obj.number == 2:
-            return "17:00"
-
-    def get_end(self, obj):
-        if obj.number == 1:
-            return "15:00"
-        elif obj.number == 2:
-            return "24:00"
 
     def get_passed(self, obj):
         return obj.passed
@@ -194,8 +178,6 @@ class ShiftOnlyOrderSerializer(serializers.ModelSerializer):
     order = OrderSerializer(many=True, read_only=True)
 
     active = serializers.SerializerMethodField()
-    start = serializers.SerializerMethodField()
-    end = serializers.SerializerMethodField()
     passed = serializers.SerializerMethodField()
     has_data = serializers.SerializerMethodField()
 
@@ -205,18 +187,6 @@ class ShiftOnlyOrderSerializer(serializers.ModelSerializer):
 
     def get_active(self, obj):
         return obj.active
-
-    def get_start(self, obj):
-        if obj.number == 1:
-            return "06:00"
-        elif obj.number == 2:
-            return "17:00"
-
-    def get_end(self, obj):
-        if obj.number == 1:
-            return "15:00"
-        elif obj.number == 2:
-            return "24:00"
 
     def get_passed(self, obj):
         return obj.passed

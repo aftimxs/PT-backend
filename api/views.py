@@ -17,7 +17,8 @@ from .helper_functions import determine_period, get_period_days, parts_filter, a
 # Create your views here.
 class ShiftView(viewsets.ModelViewSet):
     serializer_class = ShiftSerializer
-    queryset = Shift.objects.all().order_by('date')
+    queryset = Shift.objects.all().order_by('date').prefetch_related(
+        Prefetch('info', queryset=ProductionInfo.objects.order_by('minute')))
     # permission_classes = ([IsAuthenticated])
 
 
@@ -305,7 +306,7 @@ class TimelineBarView(viewsets.ModelViewSet):
         return queryset
 
 
-class TestView(generics.ListCreateAPIView):
+class MinutesView(generics.ListCreateAPIView):
     serializer_class = ProductionInfoSerializer
     queryset = ProductionInfo.objects.all().order_by('minute')
     # permission_classes = ([IsAuthenticated])

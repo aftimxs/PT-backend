@@ -9,7 +9,7 @@ from rest_framework_simplejwt.views import (
     TokenRefreshView,
 )
 
-from api.views import MyTokenObtainPairView, RegisterView, TestView, ProductStatisticsView, LineStatisticsView, HourTotalPostView
+from api.views import MyTokenObtainPairView, RegisterView, MinutesView, ProductStatisticsView, LineStatisticsView, HourTotalPostView
 
 
 router = routers.DefaultRouter()
@@ -35,7 +35,7 @@ urlpatterns = [
     path('token/', MyTokenObtainPairView.as_view(), name='token_obtain_pair'),
     path('token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
     path('register/', RegisterView.as_view(), name='register'),
-    path('product-info/', TestView.as_view(), name='product-info'),
+    path('product-info/', MinutesView.as_view(), name='product-info'),
     path('hour-post/', HourTotalPostView.as_view(), name='hour-post'),
     path('statistics/products', ProductStatisticsView.as_view(), name='products-stats'),
     path('statistics/lines', LineStatisticsView.as_view(), name='line-stats')

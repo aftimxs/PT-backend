@@ -58,10 +58,18 @@ class Shift(models.Model):
     line = models.ForeignKey(ProductionLine, related_name='shift', default=0, on_delete=models.CASCADE)
     operators = models.ManyToManyField(Operator, blank=True)
     status = models.IntegerField(choices=status_options, default=4)
+
     total_parts = models.IntegerField(default=0)
     total_scrap = models.IntegerField(default=0)
-    total_stopped = models.IntegerField(default=0)
+    bars_scrap = models.IntegerField(default=0)
+
     total_slow = models.IntegerField(default=0)
+    minutes_slow = models.IntegerField(default=0)
+    loss_slow = models.FloatField(default=0)
+
+    total_stopped = models.IntegerField(default=0)
+    minutes_stopped = models.IntegerField(default=0)
+    loss_stopped = models.FloatField(default=0)
 
     @property
     def passed(self):
@@ -101,6 +109,10 @@ class Shift(models.Model):
     class Meta:
         ordering = ['date']
 
+
+# class ShiftManager(models.Manager):
+#     def create(self, x):
+#         return shift
 
 class Machine(models.Model):
     code = models.CharField(max_length=5, unique=True)
