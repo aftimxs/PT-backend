@@ -15,7 +15,6 @@ class ProductSerializer(serializers.ModelSerializer):
 
 
 class OrderSerializer(serializers.ModelSerializer):
-
     def create(self, validated_data):
         product = validated_data.get('product')
         line = validated_data.get('line')
@@ -54,12 +53,6 @@ class MachineSerializer(serializers.ModelSerializer):
 class OperatorSerializer(serializers.ModelSerializer):
     class Meta:
         model = Operator
-        fields = '__all__'
-
-
-class ProductionInfoSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = ProductionInfo
         fields = '__all__'
 
 
@@ -117,9 +110,16 @@ class BarCommentsSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 
+class ProductionInfoSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ProductionInfo
+        fields = '__all__'
+
+
 class TimelineBarSerializer(serializers.ModelSerializer):
     bar_comments = BarCommentsSerializer(many=True, read_only=True)
     scrap = ScrapSerializer(many=True, read_only=True)
+    minutes = ProductionInfoSerializer(many=True, read_only=True)
 
     header = serializers.SerializerMethodField()
     background = serializers.SerializerMethodField()
@@ -143,7 +143,6 @@ class TimelineBarSerializer(serializers.ModelSerializer):
                 return '#dc3545'
             case 4:
                 return 'rgb(61,61,61)'
-
 
     class Meta:
         model = TimelineBar

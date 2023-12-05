@@ -372,7 +372,7 @@ class MinutesView(generics.ListCreateAPIView):
                 if current_type != prev_type or this_minute.hour != prev_minute.hour or not on_time:
                     new_bar(minute, minute, current_type, 1, parts)
                 else:
-                    parts_diff = round(parts - minute_rate, 2)
+                    parts_diff = parts - minute_rate
 
                     TimelineBar.objects.update(
                         bar=TimelineBar.objects.get(id=prev_id),
@@ -459,6 +459,7 @@ class MinutesView(generics.ListCreateAPIView):
                 line=ProductionLine.objects.filter(id=request.data['line'])[0],
                 shift=Shift.objects.filter(id=request.data['shift'])[0],
             )
+
             new_minute.save()
 
             return Response(serializer.data, status=status.HTTP_201_CREATED)

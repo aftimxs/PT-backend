@@ -19,7 +19,7 @@ class ProductAdmin(admin.ModelAdmin):
 
 
 class OrderAdmin(admin.ModelAdmin):
-    list_display = ('id', 'quantity', 'line', 'shift', 'product')
+    list_display = ('id', 'quantity', 'rate', 'line', 'shift', 'product', 'start', 'end', 'made', 'scrap')
 
 
 class OperatorAdmin(admin.ModelAdmin):

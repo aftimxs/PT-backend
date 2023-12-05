@@ -10,9 +10,6 @@ class ProductionLine(models.Model):
     area = models.CharField(max_length=15)
     cell = models.IntegerField(null=True)
 
-    # class Meta:
-    #     ordering = ['shift__date']
-
 
 class Product(models.Model):
     part_num = models.CharField(max_length=20, unique=True)
@@ -124,17 +121,10 @@ class Order(models.Model):
     product = models.ForeignKey(Product, related_name='order', default=1, on_delete=models.CASCADE)
     line = models.ForeignKey(ProductionLine, related_name='orderL', on_delete=models.CASCADE)
     shift = models.ForeignKey(Shift, related_name='order',  default=0, on_delete=models.CASCADE)
-
-
-class ProductionInfo(models.Model):
-    hour = models.TimeField(null=True)
-    minute = models.TimeField()
-    item_count = models.FloatField()
-    line = models.ForeignKey(ProductionLine, related_name='info', default=0, on_delete=models.CASCADE)
-    shift = models.ForeignKey(Shift, related_name='info',  default=0, on_delete=models.CASCADE)
-
-    class Meta:
-        ordering = ['minute']
+    start = models.TimeField(null=True)
+    end = models.TimeField(null=True)
+    made = models.IntegerField(default=0)
+    scrap = models.IntegerField(default=0)
 
 
 class TimelineBarManager(models.Manager):
@@ -145,11 +135,11 @@ class TimelineBarManager(models.Manager):
             case 2:
                 data['shift'].total_slow = data['shift'].total_slow + 1
                 data['shift'].minutes_slow = data['shift'].minutes_slow + data['bar_length']
-                data['shift'].loss_slow = data['shift'].loss_slow + data['loss']
+                data['shift'].loss_slow = round(data['shift'].loss_slow + data['loss'], 2)
             case 3:
                 data['shift'].total_stopped = data['shift'].total_stopped + 1
                 data['shift'].minutes_stopped = data['shift'].minutes_stopped + data['bar_length']
-                data['shift'].loss_stopped = data['shift'].loss_stopped + data['loss']
+                data['shift'].loss_stopped = round(data['shift'].loss_stopped + data['loss'], 2)
             case 4:
                 pass
 
@@ -165,19 +155,20 @@ class TimelineBarManager(models.Manager):
                 pass
             case 2:
                 data['bar'].shift.minutes_slow = data['bar'].shift.minutes_slow + 1
-                data['bar'].shift.loss_slow = data['bar'].shift.loss_slow + data['loss']
+                data['bar'].shift.loss_slow = round(data['bar'].shift.loss_slow + data['loss'], 2)
             case 3:
                 data['bar'].shift.minutes_stopped = data['bar'].shift.minutes_stopped + 1
-                data['bar'].shift.loss_stopped = data['bar'].shift.loss_stopped + data['loss']
+                data['bar'].shift.loss_stopped = round(data['bar'].shift.loss_stopped + data['loss'], 2)
             case 4:
                 pass
 
         data['bar'].shift.total_parts = data['bar'].shift.total_parts + data['parts_made']
 
+        # data['bar'].minutes.append()
         data['bar'].end_time = data['end_time']
         data['bar'].bar_length = data['bar'].bar_length + 1
         data['bar'].parts_made = data['bar'].parts_made + data['parts_made']
-        data['bar'].loss = data['bar'].loss + data['loss']
+        data['bar'].loss = round(data['bar'].loss + data['loss'], 2)
 
         data['bar'].shift.save()
         data['bar'].save()
@@ -206,6 +197,18 @@ class TimelineBar(models.Model):
 
     class Meta:
         ordering = ['start_time']
+
+
+class ProductionInfo(models.Model):
+    hour = models.TimeField(null=True)
+    minute = models.TimeField()
+    item_count = models.FloatField()
+    line = models.ForeignKey(ProductionLine, related_name='info', default=0, on_delete=models.CASCADE)
+    shift = models.ForeignKey(Shift, related_name='info',  default=0, on_delete=models.CASCADE)
+    timeline_bar = models.ForeignKey(TimelineBar, related_name='minutes', null=True, on_delete=models.CASCADE)
+
+    class Meta:
+        ordering = ['minute']
 
 
 class BarComments(models.Model):
