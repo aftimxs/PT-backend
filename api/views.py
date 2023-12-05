@@ -355,18 +355,6 @@ class MinutesView(generics.ListCreateAPIView):
                 hour = start.split(':')
                 parts_diff = round(part_count-minute_rate, 2)
 
-                # Update shift type and part count
-                shift_to_update = Shift.objects.get(id=shift)
-                shift_to_update.status = current_type
-                shift_to_update.total_parts = shift_to_update.total_parts + part_count
-
-                if current_type == 2:
-                    shift_to_update.total_slow = shift_to_update.total_slow + 1
-                elif current_type == 3:
-                    shift_to_update.total_stopped = shift_to_update.total_stopped + 1
-
-                shift_to_update.save()
-
                 new = TimelineBar.objects.create(
                     id=bar_id,
                     shift=Shift.objects.filter(id=shift)[0],
@@ -385,18 +373,14 @@ class MinutesView(generics.ListCreateAPIView):
                     new_bar(minute, minute, current_type, 1, parts)
                 else:
                     parts_diff = round(parts - minute_rate, 2)
-                    # UPDATE PREVIOUS BAR
-                    bar_to_update = TimelineBar.objects.get(id=prev_id)
-                    bar_to_update.end_time = minute
-                    bar_to_update.bar_length = bar_to_update.bar_length + 1
-                    bar_to_update.parts_made = bar_to_update.parts_made + parts
-                    bar_to_update.loss = bar_to_update.loss + parts_diff
-                    bar_to_update.save()
 
-                    # Update shift part count
-                    shift_to_update = Shift.objects.get(id=shift)
-                    shift_to_update.total_parts = shift_to_update.total_parts + parts
-                    shift_to_update.save()
+                    TimelineBar.objects.update(
+                        bar=TimelineBar.objects.get(id=prev_id),
+                        type=current_type,
+                        end_time=minute,
+                        parts_made=parts,
+                        loss=parts_diff
+                    )
 
             def check_rate():
                 if parts >= minute_rate:
@@ -508,18 +492,6 @@ class HourTotalPostView(generics.CreateAPIView):
             def new_bar(current_type, length):
                 bar_id = start.replace(':', '') + shift
                 parts_diff = round(total - rate, 2)
-
-                # Update shift type and part count
-                shift_to_update = Shift.objects.get(id=shift)
-                shift_to_update.status = current_type
-                shift_to_update.total_parts = shift_to_update.total_parts + total
-
-                if current_type == 2:
-                    shift_to_update.total_slow = shift_to_update.total_slow + 1
-                elif current_type == 3:
-                    shift_to_update.total_stopped = shift_to_update.total_stopped + 1
-
-                shift_to_update.save()
 
                 create_missing_minutes(f_min)
 

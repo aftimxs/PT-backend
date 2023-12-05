@@ -110,10 +110,6 @@ class Shift(models.Model):
         ordering = ['date']
 
 
-# class ShiftManager(models.Manager):
-#     def create(self, x):
-#         return shift
-
 class Machine(models.Model):
     code = models.CharField(max_length=5, unique=True)
     make = models.CharField(max_length=20)
@@ -141,6 +137,52 @@ class ProductionInfo(models.Model):
         ordering = ['minute']
 
 
+class TimelineBarManager(models.Manager):
+    def create(self, **data):
+        match data['type']:
+            case 1:
+                pass
+            case 2:
+                data['shift'].total_slow = data['shift'].total_slow + 1
+                data['shift'].minutes_slow = data['shift'].minutes_slow + data['bar_length']
+                data['shift'].loss_slow = data['shift'].loss_slow + data['loss']
+            case 3:
+                data['shift'].total_stopped = data['shift'].total_stopped + 1
+                data['shift'].minutes_stopped = data['shift'].minutes_stopped + data['bar_length']
+                data['shift'].loss_stopped = data['shift'].loss_stopped + data['loss']
+            case 4:
+                pass
+
+        data['shift'].status = data['type']
+        data['shift'].total_parts = data['shift'].total_parts + data['parts_made']
+        data['shift'].save()
+
+        return super().create(**data)
+
+    def update(self, **data):
+        match data['type']:
+            case 1:
+                pass
+            case 2:
+                data['bar'].shift.minutes_slow = data['bar'].shift.minutes_slow + 1
+                data['bar'].shift.loss_slow = data['bar'].shift.loss_slow + data['loss']
+            case 3:
+                data['bar'].shift.minutes_stopped = data['bar'].shift.minutes_stopped + 1
+                data['bar'].shift.loss_stopped = data['bar'].shift.loss_stopped + data['loss']
+            case 4:
+                pass
+
+        data['bar'].shift.total_parts = data['bar'].shift.total_parts + data['parts_made']
+
+        data['bar'].end_time = data['end_time']
+        data['bar'].bar_length = data['bar'].bar_length + 1
+        data['bar'].parts_made = data['bar'].parts_made + data['parts_made']
+        data['bar'].loss = data['bar'].loss + data['loss']
+
+        data['bar'].shift.save()
+        data['bar'].save()
+
+
 class TimelineBar(models.Model):
     bar_type = [
         (1, 'success'),
@@ -159,6 +201,8 @@ class TimelineBar(models.Model):
     hour = models.TimeField(null=True)
     has_scrap = models.BooleanField(default=False)
     loss = models.FloatField(default=0)
+
+    objects = TimelineBarManager()
 
     class Meta:
         ordering = ['start_time']

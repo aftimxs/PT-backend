@@ -144,6 +144,7 @@ class TimelineBarSerializer(serializers.ModelSerializer):
             case 4:
                 return 'rgb(61,61,61)'
 
+
     class Meta:
         model = TimelineBar
         fields = '__all__'
