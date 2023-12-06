@@ -1,3 +1,5 @@
+import json
+
 from django.db import models
 from django.contrib.auth.models import User
 from django.utils import timezone
@@ -67,6 +69,15 @@ class Shift(models.Model):
     total_stopped = models.IntegerField(default=0)
     minutes_stopped = models.IntegerField(default=0)
     loss_stopped = models.FloatField(default=0)
+
+    items = models.CharField(null=True, max_length=200)
+    quantity = models.IntegerField(default=0)
+
+    def set_items(self, x):
+        self.items = json.dumps(x)
+
+    def get_items(self):
+        return json.loads(self.items)
 
     @property
     def passed(self):

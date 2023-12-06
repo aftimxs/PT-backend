@@ -94,13 +94,13 @@ def array_vs_queryset(period_type, period_range, queryset, additive):
 def match_area_rate(area, validated_data, product):
     match area:
         case 'Welding':
-            validated_data.update(rate=product.rate)
+            validated_data.update(rate=round(product.rate, 2))
         case 'Molding':
-            validated_data.update(rate=product.molding_rate)
+            validated_data.update(rate=round(product.molding_rate, 2))
         case 'Autobag':
-            validated_data.update(rate=product.autobag_rate)
+            validated_data.update(rate=round(product.autobag_rate, 2))
         case 'Pleating':
-            validated_data.update(rate=product.pleating_rate)
+            validated_data.update(rate=round(product.pleating_rate, 2))
 
     return validated_data
 

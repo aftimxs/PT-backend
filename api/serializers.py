@@ -18,6 +18,17 @@ class OrderSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         product = validated_data.get('product')
         line = validated_data.get('line')
+        shift = validated_data.get('shift')
+        quantity = validated_data.get('quantity')
+
+        shift.quantity = shift.quantity + quantity
+        if shift.items:
+            x = shift.get_items()
+            x.append(product.part_num)
+            shift.set_items(x)
+        else:
+            shift.set_items([product.part_num])
+        shift.save()
 
         validated_data = match_area_rate(line.area, validated_data, product)
 
@@ -25,10 +36,17 @@ class OrderSerializer(serializers.ModelSerializer):
 
     def update(self, instance, validated_data):
         product = validated_data.get('product')
+        shift = validated_data.get('shift', instance.shift)
 
         if product != instance.product:
-            line = validated_data.get('line')
+            line = validated_data.get('line', instance.line)
             validated_data = match_area_rate(line.area, validated_data, product)
+
+            x = shift.get_items()
+            index = x.index(instance.product.part_num)
+            x[index] = product.part_num
+            shift.set_items(x)
+            shift.save()
 
         # list of fields in validated data
         update_fields = [k for k in validated_data]
@@ -38,6 +56,7 @@ class OrderSerializer(serializers.ModelSerializer):
 
         instance.save(update_fields=update_fields)
         return instance
+
 
     class Meta:
         model = Order
