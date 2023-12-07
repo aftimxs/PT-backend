@@ -1,16 +1,14 @@
 from rest_framework import viewsets, status
 from rest_framework.response import Response
 from rest_framework.permissions import AllowAny, IsAuthenticated
-
-from .serializers import *
-from django.db.models import Prefetch
 from rest_framework import generics
-from django.contrib.auth.models import User
-
 from rest_framework_simplejwt.views import TokenObtainPairView
 
-from datetime import date, datetime, timedelta
+from django.db.models import Prefetch
+from django.contrib.auth.models import User
+from django.shortcuts import get_object_or_404
 
+from .serializers import *
 from .helper_functions import determine_period, get_period_days, parts_filter, array_vs_queryset
 
 
@@ -193,6 +191,41 @@ class OrderView(viewsets.ModelViewSet):
     serializer_class = OrderSerializer
     # permission_classes = ([IsAuthenticated])
 
+    def destroy(self, request, *args, **kwargs):
+        # look for instance or raise 404
+        instance = get_object_or_404(Order, pk=kwargs['pk'])
+
+        if instance:
+            # remove quantity from shift
+            instance.shift.quantity = instance.shift.quantity - instance.quantity
+
+            # remove product from shift
+            if instance.shift.items:
+                x = instance.shift.get_items()
+                index = x.index(instance.product.part_num)
+                del x[index]
+                instance.shift.set_items(x)
+
+            if instance.shift.rate_per_hour:
+                rates = instance.shift.get_rates()
+                start = instance.start
+                end = instance.end
+
+                start_time = datetime.combine(date.today(), start)
+                end_time = datetime.combine(date.today(), end)
+
+                hours = (end_time - start_time).total_seconds() / 3600.0
+
+                for i in range(int(hours)):
+                    del rates[(start_time + timedelta(hours=i)).strftime('%H:%M:%S')]
+                instance.shift.set_rates(rates)
+
+            instance.shift.save()
+
+        # delete instance
+        self.perform_destroy(instance)
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
 
 class OperatorView(viewsets.ModelViewSet):
     queryset = Operator.objects.all()
@@ -323,10 +356,14 @@ class MinutesView(generics.ListCreateAPIView):
             shift = request.data['shift']
             parts = float(request.data['item_count'])
             minute = request.data['minute']
+            hour = request.data['hour']
+
+            order = Order.objects.get(shift=shift, start__lte=hour, end__gt=hour)
 
             # DB DATA
             previous_bar = TimelineBar.objects.filter(shift=shift).values().last()
-            rate = Order.objects.get(shift=shift).rate
+            rate = order.rate
+            product = order.product.part_num
             shift_num = getattr(Shift.objects.get(id=shift), 'number')
 
             # DATA FOR BAR TYPE
@@ -350,7 +387,7 @@ class MinutesView(generics.ListCreateAPIView):
             on_time = this_minute == prev_minute + timedelta(minutes=1)
 
             # CREATE NEW BAR
-            def new_bar(start, end, current_type, length, part_count):
+            def new_bar(start, end, current_type, length, part_count, fill):
                 bar_id = start.replace(':', '') + shift
                 hour = start.split(':')
                 parts_diff = round(part_count-minute_rate, 2)
@@ -365,12 +402,14 @@ class MinutesView(generics.ListCreateAPIView):
                     parts_made=part_count,
                     hour=hour[0]+':00:00',
                     loss=parts_diff,
+                    product=product if not fill else None,
+                    order=order
                 )
                 new.save()
 
             def check_color(current_type):
                 if current_type != prev_type or this_minute.hour != prev_minute.hour or not on_time:
-                    new_bar(minute, minute, current_type, 1, parts)
+                    new_bar(minute, minute, current_type, 1, parts, False)
                 else:
                     parts_diff = parts - minute_rate
 
@@ -379,7 +418,8 @@ class MinutesView(generics.ListCreateAPIView):
                         type=current_type,
                         end_time=minute,
                         parts_made=parts,
-                        loss=parts_diff
+                        loss=parts_diff,
+                        order=order
                     )
 
             def check_rate():
@@ -440,12 +480,12 @@ class MinutesView(generics.ListCreateAPIView):
 
                     for bar in fill_bars:
                         long = calculate_length(bar[1], bar[0])
-                        new_bar(bar[0].strftime("%H:%M"), bar[1].strftime("%H:%M"), 4, long, 0)
+                        new_bar(bar[0].strftime("%H:%M"), bar[1].strftime("%H:%M"), 4, long, 0, True)
 
                 else:
                     # FILLER BAR
                     long = calculate_length(e, s)
-                    new_bar(s.strftime("%H:%M"), e.strftime("%H:%M"), 4, long, 0)
+                    new_bar(s.strftime("%H:%M"), e.strftime("%H:%M"), 4, long, 0, True)
 
                 create_missing_minutes(s, e)
 
@@ -484,10 +524,13 @@ class HourTotalPostView(generics.CreateAPIView):
             total = float(request.data['total'])
             start = request.data['hour']
 
-            rate = Order.objects.get(shift=shift).rate
             line = ProductionLine.objects.get(shift=shift)
             f_min = datetime.strptime(start, "%H:%M:%S")
             end = (datetime.strptime(start, "%H:%M:%S") + timedelta(minutes=59)).time()
+
+            order = Order.objects.get(shift=shift, start__lte=start, end__gt=end)
+            rate = order.rate
+            product = order.product.part_num
 
             # CREATE NEW BAR
             def new_bar(current_type, length):
@@ -506,6 +549,8 @@ class HourTotalPostView(generics.CreateAPIView):
                     parts_made=total,
                     hour=start,
                     loss=parts_diff,
+                    product=product,
+                    order=order
                 )
                 new.save()
 

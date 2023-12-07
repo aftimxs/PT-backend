@@ -104,3 +104,25 @@ def match_area_rate(area, validated_data, product):
 
     return validated_data
 
+
+def calculate_rates_per_hour(start, end, instance, shift, rate, time_change):
+    start_time = datetime.combine(date.today(), start)
+    end_time = datetime.combine(date.today(), end)
+    instance_start_time = datetime.combine(date.today(), instance.start)
+    instance_end_time = datetime.combine(date.today(), instance.end)
+
+    rates = shift.get_rates()
+    hours = (end_time - start_time).total_seconds() / 3600.0
+    for i in range(int(hours)):
+        rates[(start_time + timedelta(hours=i)).strftime('%H:%M:%S')] = rate
+
+    if time_change:
+        if instance_start_time < start_time:
+            hours_before = (start_time - instance_start_time).total_seconds() / 3600.0
+            for i in range(int(hours_before)):
+                del rates[(instance_start_time + timedelta(hours=i)).strftime('%H:%M:%S')]
+        if end_time < instance_end_time:
+            hours_after = (instance_end_time - end_time).total_seconds() / 3600.0
+            for i in range(int(hours_after)):
+                del rates[(instance_end_time - timedelta(hours=i+1)).strftime('%H:%M:%S')]
+    shift.set_rates(rates)

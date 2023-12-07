@@ -5,7 +5,7 @@ from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from rest_framework.validators import UniqueValidator
 from django.contrib.auth.password_validation import validate_password
 
-from .helper_functions import match_area_rate
+from .helper_functions import match_area_rate, calculate_rates_per_hour
 
 
 class ProductSerializer(serializers.ModelSerializer):
@@ -20,23 +20,49 @@ class OrderSerializer(serializers.ModelSerializer):
         line = validated_data.get('line')
         shift = validated_data.get('shift')
         quantity = validated_data.get('quantity')
+        start = validated_data.get('start')
+        end = validated_data.get('end')
 
+        validated_data = match_area_rate(line.area, validated_data, product)
+
+        # get the rates for each hour
+        start_time = datetime.combine(date.today(), start)
+        end_time = datetime.combine(date.today(), end)
+
+        hours = (end_time - start_time).total_seconds() / 3600.0
+
+        if shift.rate_per_hour:
+            rates = shift.get_rates()
+        else:
+            rates = {}
+
+        for i in range(int(hours)):
+            rates[(start_time + timedelta(hours=i)).strftime('%H:%M:%S')] = validated_data.get('rate')
+        shift.set_rates(rates)
+
+        # update shift total quantity
         shift.quantity = shift.quantity + quantity
+
+        # update shift items
         if shift.items:
             x = shift.get_items()
             x.append(product.part_num)
             shift.set_items(x)
         else:
             shift.set_items([product.part_num])
+
         shift.save()
-
-        validated_data = match_area_rate(line.area, validated_data, product)
-
         return Order.objects.create(**validated_data)
 
     def update(self, instance, validated_data):
         product = validated_data.get('product')
+        quantity = validated_data.get('quantity')
+        start = validated_data.get('start')
+        end = validated_data.get('end')
         shift = validated_data.get('shift', instance.shift)
+
+        if start != instance.start or end != instance.end:
+            calculate_rates_per_hour(start, end, instance, shift, instance.rate, True)
 
         if product != instance.product:
             line = validated_data.get('line', instance.line)
@@ -46,8 +72,14 @@ class OrderSerializer(serializers.ModelSerializer):
             index = x.index(instance.product.part_num)
             x[index] = product.part_num
             shift.set_items(x)
-            shift.save()
 
+            calculate_rates_per_hour(start, end, instance, shift, validated_data.get('rate'), False)
+
+        if quantity != instance.quantity:
+            difference = quantity - instance.quantity
+            shift.quantity = shift.quantity + difference
+
+        shift.save()
         # list of fields in validated data
         update_fields = [k for k in validated_data]
         # update the data on those fields
@@ -56,7 +88,6 @@ class OrderSerializer(serializers.ModelSerializer):
 
         instance.save(update_fields=update_fields)
         return instance
-
 
     class Meta:
         model = Order

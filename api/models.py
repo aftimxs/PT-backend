@@ -72,12 +72,19 @@ class Shift(models.Model):
 
     items = models.CharField(null=True, max_length=200)
     quantity = models.IntegerField(default=0)
+    rate_per_hour = models.CharField(null=True, max_length=250)
 
     def set_items(self, x):
         self.items = json.dumps(x)
 
     def get_items(self):
         return json.loads(self.items)
+
+    def set_rates(self, x):
+        self.rate_per_hour = json.dumps(x)
+
+    def get_rates(self):
+        return json.loads(self.rate_per_hour)
 
     @property
     def passed(self):
@@ -158,6 +165,10 @@ class TimelineBarManager(models.Manager):
         data['shift'].total_parts = data['shift'].total_parts + data['parts_made']
         data['shift'].save()
 
+        data['order'].made = data['order'].made + data['parts_made']
+        data['order'].save()
+
+        data.pop('order')
         return super().create(**data)
 
     def update(self, **data):
@@ -175,14 +186,16 @@ class TimelineBarManager(models.Manager):
 
         data['bar'].shift.total_parts = data['bar'].shift.total_parts + data['parts_made']
 
-        # data['bar'].minutes.append()
         data['bar'].end_time = data['end_time']
         data['bar'].bar_length = data['bar'].bar_length + 1
         data['bar'].parts_made = data['bar'].parts_made + data['parts_made']
         data['bar'].loss = round(data['bar'].loss + data['loss'], 2)
 
+        data['order'].made = data['order'].made + data['parts_made']
+
         data['bar'].shift.save()
         data['bar'].save()
+        data['order'].save()
 
 
 class TimelineBar(models.Model):
@@ -203,6 +216,7 @@ class TimelineBar(models.Model):
     hour = models.TimeField(null=True)
     has_scrap = models.BooleanField(default=False)
     loss = models.FloatField(default=0)
+    product = models.CharField(null=True, max_length=30)
 
     objects = TimelineBarManager()
 
