@@ -112,16 +112,26 @@ class ScrapSerializer(serializers.ModelSerializer):
         scrap_id = validated_data.get('id')
         pieces = validated_data.get('pieces')
 
+        bar_hour = instance.bar.hour
+
         if pieces:
             shift_to_update = Shift.objects.get(scrap__id=scrap_id)
+            order_to_update = Order.objects.get(shift=shift_to_update, start__lte=bar_hour, end__gt=bar_hour)
             if instance.pieces:
                 difference = pieces - instance.pieces
+                # shift
                 shift_to_update.total_scrap = shift_to_update.total_scrap + difference
                 shift_to_update.bars_scrap = shift_to_update.bars_scrap + difference
+                # order
+                order_to_update.scrap = order_to_update.scrap + difference
             else:
+                # shift
                 shift_to_update.total_scrap = shift_to_update.total_scrap + pieces
                 shift_to_update.bars_scrap = shift_to_update.bars_scrap + pieces
+                # order
+                order_to_update.scrap = order_to_update.scrap + pieces
             shift_to_update.save()
+            order_to_update.save()
 
         # remove id because its PK
         validated_data.pop('id', None)

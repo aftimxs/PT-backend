@@ -250,6 +250,7 @@ class Scrap(models.Model):
     comments = models.CharField(max_length=200, null=True)
     bar = models.ForeignKey(TimelineBar, related_name='scrap', on_delete=models.CASCADE, default=None)
     shift = models.ForeignKey(Shift, related_name='scrap', on_delete=models.CASCADE, default=None)
+    product = models.CharField(null=True, max_length=30)
 
 
 class Downtime(models.Model):

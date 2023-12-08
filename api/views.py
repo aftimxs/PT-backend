@@ -258,10 +258,17 @@ class ScrapView(viewsets.ModelViewSet):
             shift = request.data['shift']
             bar = request.data['bar']
 
+            bar_hour = TimelineBar.objects.get(id=bar).hour
+
             if pieces:
                 shift_to_update = Shift.objects.get(id=shift)
+                order_to_update = Order.objects.get(shift=shift_to_update, start__lte=bar_hour, end__gt=bar_hour)
+
                 shift_to_update.total_scrap = shift_to_update.total_scrap - pieces
+                order_to_update.scrap = order_to_update.scrap - pieces
+
                 shift_to_update.save()
+                order_to_update.save()
 
             bar_to_update = TimelineBar.objects.get(id=bar)
             bar_to_update.has_scrap = False
