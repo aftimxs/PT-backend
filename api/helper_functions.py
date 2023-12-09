@@ -1,6 +1,8 @@
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, time
 from django.utils import timezone
-from .models import Product
+from .models import Product, Order
+from rest_framework import serializers
+
 
 
 def parts_filter(products_request):
@@ -126,3 +128,44 @@ def calculate_rates_per_hour(start, end, instance, shift, rate, time_change):
             for i in range(int(hours_after)):
                 del rates[(instance_end_time - timedelta(hours=i+1)).strftime('%H:%M:%S')]
     shift.set_rates(rates)
+
+
+def overlap(shift, start, end):
+    orders = Order.objects.filter(shift=shift)
+    for order in orders:
+        for f, s in (([order.start, order.end], [start, end]), ([start, end], [order.start, order.end])):
+            for x in (f[0], f[1]):
+                if s[0] < x < s[1]:
+                    return True
+    else:
+        return False
+
+
+def order_validate(quantity, start, end, shift):
+    if quantity < 1:
+        raise serializers.ValidationError({"quantity": "Can't be 0"})
+
+    if start.minute != 0:
+        raise serializers.ValidationError({"start": "Minutes must be 00"})
+    if end.minute != 0:
+        raise serializers.ValidationError({"end": "Minutes must be 00"})
+    if start == end:
+        raise serializers.ValidationError(
+            {"start": "Can't be the same as end", "end": "Can't be the same as start"})
+    if end.hour - start.hour < 1:
+        raise serializers.ValidationError({"start": "Must be before end", "end": "Must be after start"})
+
+    match shift.number:
+        case 1:
+            if not time(6, 0) <= start <= time(14, 0):
+                raise serializers.ValidationError({"start": "Value out of range"})
+            if not time(7, 0) <= end <= time(15, 0):
+                raise serializers.ValidationError({"end": "Value out of range"})
+        case 2:
+            if not time(17, 0) <= start <= time(23, 0):
+                raise serializers.ValidationError({"start": "Value out of range"})
+            if not time(18, 0) <= end >= time(0, 0):
+                raise serializers.ValidationError({"end": "Value out of range"})
+
+    if overlap(shift, start, end):
+        raise serializers.ValidationError({"start": "Overlaps another order", "end": "Overlaps another order"})

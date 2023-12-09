@@ -19,7 +19,7 @@ class ProductAdmin(admin.ModelAdmin):
 
 
 class OrderAdmin(admin.ModelAdmin):
-    list_display = ('id', 'quantity', 'rate', 'line', 'shift', 'product', 'start', 'end', 'made', 'scrap')
+    list_display = ('id', 'quantity', 'rate', 'line', 'shift', 'product', 'start', 'end')
 
 
 class OperatorAdmin(admin.ModelAdmin):
@@ -50,6 +50,10 @@ class BarCommentsAdmin(admin.ModelAdmin):
     list_display = ('id', 'reason', 'comments', 'bar')
 
 
+class StatsAdmin(admin.ModelAdmin):
+    list_display = ('id', 'made', 'scrap', 'bars_scrap', 'total_slow', 'minutes_slow', 'loss_slow', 'total_stopped', 'minutes_stopped', 'loss_stopped', 'shift', 'order')
+
+
 # Register your models here.
 admin.site.register(Shift, ShiftAdmin)
 admin.site.register(ProductionLine, ProductionLineAdmin)
@@ -63,3 +67,4 @@ admin.site.register(Speedloss, SpeedlossAdmin)
 admin.site.register(ProductionInfo, ProductionInfoAdmin)
 admin.site.register(TimelineBar, TimelineBarAdmin)
 admin.site.register(BarComments, BarCommentsAdmin)
+admin.site.register(Stats, StatsAdmin)

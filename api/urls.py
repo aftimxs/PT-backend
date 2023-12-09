@@ -27,6 +27,7 @@ router.register(r'timeline-bars', views.TimelineBarView, 'timeline-bars')
 router.register(r'comments', views.BarCommentsView, 'comments')
 router.register(r'calendar', views.CalendarLookupView, 'calendar')
 router.register(r'calendar-day', views.CalendarDayLookupView, 'calendar-day')
+router.register(r'stats', views.StatsView, 'stats')
 
 
 urlpatterns = [

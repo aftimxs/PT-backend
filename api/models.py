@@ -58,21 +58,10 @@ class Shift(models.Model):
     operators = models.ManyToManyField(Operator, blank=True)
     status = models.IntegerField(choices=status_options, default=4)
 
-    total_parts = models.IntegerField(default=0)
-    total_scrap = models.IntegerField(default=0)
-    bars_scrap = models.IntegerField(default=0)
-
-    total_slow = models.IntegerField(default=0)
-    minutes_slow = models.IntegerField(default=0)
-    loss_slow = models.FloatField(default=0)
-
-    total_stopped = models.IntegerField(default=0)
-    minutes_stopped = models.IntegerField(default=0)
-    loss_stopped = models.FloatField(default=0)
-
     items = models.CharField(null=True, max_length=200)
     quantity = models.IntegerField(default=0)
     rate_per_hour = models.CharField(null=True, max_length=250)
+    reference_line = models.CharField(null=True, max_length=200)
 
     def set_items(self, x):
         self.items = json.dumps(x)
@@ -85,6 +74,12 @@ class Shift(models.Model):
 
     def get_rates(self):
         return json.loads(self.rate_per_hour)
+
+    def set_reference_line(self, x):
+        self.reference_line = json.dumps(x)
+
+    def get_reference_line(self):
+        return json.loads(self.reference_line)
 
     @property
     def passed(self):
@@ -139,10 +134,33 @@ class Order(models.Model):
     product = models.ForeignKey(Product, related_name='order', default=1, on_delete=models.CASCADE)
     line = models.ForeignKey(ProductionLine, related_name='orderL', on_delete=models.CASCADE)
     shift = models.ForeignKey(Shift, related_name='order',  default=0, on_delete=models.CASCADE)
+
     start = models.TimeField(null=True)
     end = models.TimeField(null=True)
+
+    @property
+    def has_data(self):
+        if Stats.objects.get(order=self).made != 0:
+            return True
+        else:
+            return False
+
+
+class Stats(models.Model):
+    shift = models.ForeignKey(Shift, related_name='stats', null=True, on_delete=models.CASCADE)
+    order = models.ForeignKey(Order, related_name='stats', null=True, on_delete=models.CASCADE)
+
     made = models.IntegerField(default=0)
     scrap = models.IntegerField(default=0)
+    bars_scrap = models.IntegerField(default=0)
+
+    total_slow = models.IntegerField(default=0)
+    minutes_slow = models.IntegerField(default=0)
+    loss_slow = models.FloatField(default=0)
+
+    total_stopped = models.IntegerField(default=0)
+    minutes_stopped = models.IntegerField(default=0)
+    loss_stopped = models.FloatField(default=0)
 
 
 class TimelineBarManager(models.Manager):
@@ -151,24 +169,35 @@ class TimelineBarManager(models.Manager):
             case 1:
                 pass
             case 2:
-                data['shift'].total_slow = data['shift'].total_slow + 1
-                data['shift'].minutes_slow = data['shift'].minutes_slow + data['bar_length']
-                data['shift'].loss_slow = round(data['shift'].loss_slow + data['loss'], 2)
+                data['shift_stats'].total_slow = data['shift_stats'].total_slow + 1
+                data['shift_stats'].minutes_slow = data['shift_stats'].minutes_slow + data['bar_length']
+                data['shift_stats'].loss_slow = round(data['shift_stats'].loss_slow + data['loss'], 2)
+
+                data['stats'].total_slow = data['stats'].total_slow + 1
+                data['stats'].minutes_slow = data['stats'].minutes_slow + data['bar_length']
+                data['stats'].loss_slow = round(data['stats'].loss_slow + data['loss'], 2)
             case 3:
-                data['shift'].total_stopped = data['shift'].total_stopped + 1
-                data['shift'].minutes_stopped = data['shift'].minutes_stopped + data['bar_length']
-                data['shift'].loss_stopped = round(data['shift'].loss_stopped + data['loss'], 2)
+                data['shift_stats'].total_stopped = data['shift_stats'].total_stopped + 1
+                data['shift_stats'].minutes_stopped = data['shift_stats'].minutes_stopped + data['bar_length']
+                data['shift_stats'].loss_stopped = round(data['shift_stats'].loss_stopped + data['loss'], 2)
+
+                data['stats'].total_stopped = data['stats'].total_stopped + 1
+                data['stats'].minutes_stopped = data['stats'].minutes_stopped + data['bar_length']
+                data['stats'].loss_stopped = round(data['stats'].loss_stopped + data['loss'], 2)
             case 4:
                 pass
 
         data['shift'].status = data['type']
-        data['shift'].total_parts = data['shift'].total_parts + data['parts_made']
         data['shift'].save()
 
-        data['order'].made = data['order'].made + data['parts_made']
-        data['order'].save()
+        data['shift_stats'].made = data['shift_stats'].made + data['parts_made']
+        data['shift_stats'].save()
 
-        data.pop('order')
+        data['stats'].made = data['stats'].made + data['parts_made']
+        data['stats'].save()
+
+        data.pop('stats')
+        data.pop('shift_stats')
         return super().create(**data)
 
     def update(self, **data):
@@ -176,26 +205,32 @@ class TimelineBarManager(models.Manager):
             case 1:
                 pass
             case 2:
-                data['bar'].shift.minutes_slow = data['bar'].shift.minutes_slow + 1
-                data['bar'].shift.loss_slow = round(data['bar'].shift.loss_slow + data['loss'], 2)
+                data['shift_stats'].minutes_slow = data['shift_stats'].minutes_slow + 1
+                data['shift_stats'].loss_slow = round(data['shift_stats'].loss_slow + data['loss'], 2)
+
+                data['stats'].minutes_slow = data['stats'].minutes_slow + 1
+                data['stats'].loss_slow = round(data['stats'].loss_slow + data['loss'], 2)
             case 3:
-                data['bar'].shift.minutes_stopped = data['bar'].shift.minutes_stopped + 1
-                data['bar'].shift.loss_stopped = round(data['bar'].shift.loss_stopped + data['loss'], 2)
+                data['shift_stats'].minutes_stopped = data['shift_stats'].minutes_stopped + 1
+                data['shift_stats'].loss_stopped = round(data['shift_stats'].loss_stopped + data['loss'], 2)
+
+                data['stats'].minutes_stopped = data['stats'].minutes_stopped + 1
+                data['stats'].loss_stopped = round(data['stats'].loss_stopped + data['loss'], 2)
             case 4:
                 pass
 
-        data['bar'].shift.total_parts = data['bar'].shift.total_parts + data['parts_made']
+        data['shift_stats'].made = data['shift_stats'].made + data['parts_made']
 
         data['bar'].end_time = data['end_time']
         data['bar'].bar_length = data['bar'].bar_length + 1
         data['bar'].parts_made = data['bar'].parts_made + data['parts_made']
         data['bar'].loss = round(data['bar'].loss + data['loss'], 2)
 
-        data['order'].made = data['order'].made + data['parts_made']
+        data['stats'].made = data['stats'].made + data['parts_made']
 
-        data['bar'].shift.save()
+        data['shift_stats'].save()
         data['bar'].save()
-        data['order'].save()
+        data['stats'].save()
 
 
 class TimelineBar(models.Model):

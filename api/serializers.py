@@ -5,7 +5,7 @@ from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from rest_framework.validators import UniqueValidator
 from django.contrib.auth.password_validation import validate_password
 
-from .helper_functions import match_area_rate, calculate_rates_per_hour
+from .helper_functions import match_area_rate, calculate_rates_per_hour, order_validate
 
 
 class ProductSerializer(serializers.ModelSerializer):
@@ -14,7 +14,20 @@ class ProductSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 
+class StatsSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Stats
+        fields = '__all__'
+
+
 class OrderSerializer(serializers.ModelSerializer):
+    stats = StatsSerializer(many=True, read_only=True)
+
+    has_data = serializers.SerializerMethodField()
+
+    def get_has_data(self, obj):
+        return obj.has_data
+
     def create(self, validated_data):
         product = validated_data.get('product')
         line = validated_data.get('line')
@@ -22,6 +35,8 @@ class OrderSerializer(serializers.ModelSerializer):
         quantity = validated_data.get('quantity')
         start = validated_data.get('start')
         end = validated_data.get('end')
+
+        order_validate(quantity, start, end, shift)
 
         validated_data = match_area_rate(line.area, validated_data, product)
 
@@ -35,10 +50,18 @@ class OrderSerializer(serializers.ModelSerializer):
             rates = shift.get_rates()
         else:
             rates = {}
-
         for i in range(int(hours)):
             rates[(start_time + timedelta(hours=i)).strftime('%H:%M:%S')] = validated_data.get('rate')
         shift.set_rates(rates)
+
+        # set ref line
+        if shift.reference_line:
+            ref = shift.get_reference_line()
+        else:
+            ref = []
+        ref.append({'x': start.strftime('%H:%M:%S'), 'y': round(validated_data.get('rate')/60.0, 2)})
+        ref.append({'x': end.strftime('%H:%M:%S'), 'y': round(validated_data.get('rate')/60.0, 2)})
+        shift.set_reference_line(ref)
 
         # update shift total quantity
         shift.quantity = shift.quantity + quantity
@@ -52,7 +75,12 @@ class OrderSerializer(serializers.ModelSerializer):
             shift.set_items([product.part_num])
 
         shift.save()
-        return Order.objects.create(**validated_data)
+        order = Order.objects.create(**validated_data)
+        stats = Stats.objects.create(
+            order=order
+        )
+        stats.save()
+        return order
 
     def update(self, instance, validated_data):
         product = validated_data.get('product')
@@ -60,6 +88,8 @@ class OrderSerializer(serializers.ModelSerializer):
         start = validated_data.get('start')
         end = validated_data.get('end')
         shift = validated_data.get('shift', instance.shift)
+
+        order_validate(quantity, start, end, shift)
 
         if start != instance.start or end != instance.end:
             calculate_rates_per_hour(start, end, instance, shift, instance.rate, True)
@@ -115,21 +145,24 @@ class ScrapSerializer(serializers.ModelSerializer):
         bar_hour = instance.bar.hour
 
         if pieces:
-            shift_to_update = Shift.objects.get(scrap__id=scrap_id)
-            order_to_update = Order.objects.get(shift=shift_to_update, start__lte=bar_hour, end__gt=bar_hour)
+            shift_to_update = Stats.objects.get(shift__scrap__id=scrap_id)
+            order_to_update = Stats.objects.get(order__shift__scrap__id=scrap_id, order__start__lte=bar_hour,
+                                                order__end__gt=bar_hour)
             if instance.pieces:
                 difference = pieces - instance.pieces
                 # shift
-                shift_to_update.total_scrap = shift_to_update.total_scrap + difference
+                shift_to_update.scrap = shift_to_update.scrap + difference
                 shift_to_update.bars_scrap = shift_to_update.bars_scrap + difference
                 # order
                 order_to_update.scrap = order_to_update.scrap + difference
+                order_to_update.bars_scrap = order_to_update.bars_scrap + difference
             else:
                 # shift
-                shift_to_update.total_scrap = shift_to_update.total_scrap + pieces
+                shift_to_update.scrap = shift_to_update.scrap + pieces
                 shift_to_update.bars_scrap = shift_to_update.bars_scrap + pieces
                 # order
                 order_to_update.scrap = order_to_update.scrap + pieces
+                order_to_update.bars_scrap = order_to_update.bars_scrap + pieces
             shift_to_update.save()
             order_to_update.save()
 
@@ -215,10 +248,19 @@ class ShiftSerializer(serializers.ModelSerializer):
     info = ProductionInfoSerializer(many=True, read_only=True)
     scrap = ScrapSerializer(many=True, read_only=True)
     timelineBar = TimelineBarSerializer(many=True, read_only=True)
+    stats = StatsSerializer(many=True, read_only=True)
 
     active = serializers.SerializerMethodField()
     passed = serializers.SerializerMethodField()
     has_data = serializers.SerializerMethodField()
+
+    def create(self, validated_data):
+        shift = Shift.objects.create(**validated_data)
+        stats = Stats.objects.create(
+            shift=shift
+        )
+        stats.save()
+        return shift
 
     class Meta:
         model = Shift

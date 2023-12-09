@@ -3,6 +3,8 @@ from rest_framework.response import Response
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework import generics
 from rest_framework_simplejwt.views import TokenObtainPairView
+from rest_framework.exceptions import ValidationError
+from django.core.exceptions import ObjectDoesNotExist
 
 from django.db.models import Prefetch
 from django.contrib.auth.models import User
@@ -23,6 +25,12 @@ class ShiftView(viewsets.ModelViewSet):
 class ShortShiftView(viewsets.ModelViewSet):
     serializer_class = ShiftOnlyOrderSerializer
     queryset = Shift.objects.all().order_by('date')
+    # permission_classes = ([IsAuthenticated])
+
+
+class StatsView(viewsets.ModelViewSet):
+    serializer_class = StatsSerializer
+    queryset = Stats.objects.all()
     # permission_classes = ([IsAuthenticated])
 
 
@@ -261,11 +269,13 @@ class ScrapView(viewsets.ModelViewSet):
             bar_hour = TimelineBar.objects.get(id=bar).hour
 
             if pieces:
-                shift_to_update = Shift.objects.get(id=shift)
-                order_to_update = Order.objects.get(shift=shift_to_update, start__lte=bar_hour, end__gt=bar_hour)
+                shift_to_update = Stats.objects.get(shift__id=shift)
+                order_to_update = Stats.objects.get(order__shift__id=shift, order__start__lte=bar_hour, order__end__gt=bar_hour)
 
-                shift_to_update.total_scrap = shift_to_update.total_scrap - pieces
+                shift_to_update.scrap = shift_to_update.scrap - pieces
+                shift_to_update.bars_scrap = shift_to_update.bars_scrap - pieces
                 order_to_update.scrap = order_to_update.scrap - pieces
+                order_to_update.bars_scrap = order_to_update.bars_scrap - pieces
 
                 shift_to_update.save()
                 order_to_update.save()
@@ -365,7 +375,12 @@ class MinutesView(generics.ListCreateAPIView):
             minute = request.data['minute']
             hour = request.data['hour']
 
-            order = Order.objects.get(shift=shift, start__lte=hour, end__gt=hour)
+            try:
+                order = Order.objects.get(shift=shift, start__lte=hour, end__gt=hour)
+            except ObjectDoesNotExist:
+                return Response(data={'Inactive': 'No active order at that time'}, status=status.HTTP_404_NOT_FOUND)
+
+            stats = Stats.objects.get(order=order)
 
             # DB DATA
             previous_bar = TimelineBar.objects.filter(shift=shift).values().last()
@@ -410,7 +425,8 @@ class MinutesView(generics.ListCreateAPIView):
                     hour=hour[0]+':00:00',
                     loss=parts_diff,
                     product=product if not fill else None,
-                    order=order
+                    stats=stats,
+                    shift_stats=Stats.objects.get(shift__id=shift)
                 )
                 new.save()
 
@@ -426,7 +442,8 @@ class MinutesView(generics.ListCreateAPIView):
                         end_time=minute,
                         parts_made=parts,
                         loss=parts_diff,
-                        order=order
+                        stats=stats,
+                        shift_stats=Stats.objects.get(shift__id=shift)
                     )
 
             def check_rate():
@@ -535,9 +552,14 @@ class HourTotalPostView(generics.CreateAPIView):
             f_min = datetime.strptime(start, "%H:%M:%S")
             end = (datetime.strptime(start, "%H:%M:%S") + timedelta(minutes=59)).time()
 
-            order = Order.objects.get(shift=shift, start__lte=start, end__gt=end)
+            try:
+                order = Order.objects.get(shift=shift, start__lte=start, end__gt=end)
+            except ObjectDoesNotExist:
+                return Response(data={'Inactive': 'No active order at that time'}, status=status.HTTP_404_NOT_FOUND)
+
             rate = order.rate
             product = order.product.part_num
+            stats = Stats.objects.get(order=order)
 
             # CREATE NEW BAR
             def new_bar(current_type, length):
@@ -557,7 +579,8 @@ class HourTotalPostView(generics.CreateAPIView):
                     hour=start,
                     loss=parts_diff,
                     product=product,
-                    order=order
+                    stats=stats,
+                    shift_stats=Stats.objects.get(shift__id=shift)
                 )
                 new.save()
 
