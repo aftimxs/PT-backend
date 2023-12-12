@@ -42,7 +42,10 @@ class OrderSerializer(serializers.ModelSerializer):
 
         # get the rates for each hour
         start_time = datetime.combine(date.today(), start)
-        end_time = datetime.combine(date.today(), end)
+        if end.hour == 0:
+            end_time = datetime.combine(date.today()+timedelta(days=1), end)
+        else:
+            end_time = datetime.combine(date.today(), end)
 
         hours = (end_time - start_time).total_seconds() / 3600.0
 
@@ -59,8 +62,8 @@ class OrderSerializer(serializers.ModelSerializer):
             ref = shift.get_reference_line()
         else:
             ref = []
-        ref.append({'x': start.strftime('%H:%M:%S'), 'y': round(validated_data.get('rate')/60.0, 2)})
-        ref.append({'x': end.strftime('%H:%M:%S'), 'y': round(validated_data.get('rate')/60.0, 2)})
+        ref.append({'x': start.strftime('%H:%M:%S'), 'y': round(validated_data.get('rate') / 60.0, 2)})
+        ref.append({'x': end.strftime('%H:%M:%S'), 'y': round(validated_data.get('rate') / 60.0, 2)})
         shift.set_reference_line(ref)
 
         # update shift total quantity
@@ -89,7 +92,7 @@ class OrderSerializer(serializers.ModelSerializer):
         end = validated_data.get('end')
         shift = validated_data.get('shift', instance.shift)
 
-        order_validate(quantity, start, end, shift)
+        order_validate(quantity, start, end, shift, order_id=instance.id)
 
         if start != instance.start or end != instance.end:
             calculate_rates_per_hour(start, end, instance, shift, instance.rate, True)
@@ -255,6 +258,18 @@ class ShiftSerializer(serializers.ModelSerializer):
     has_data = serializers.SerializerMethodField()
 
     def create(self, validated_data):
+        number = validated_data.get('number')
+        date = validated_data.get('date')
+
+        if (timezone.now()-timedelta(hours=8)).date() >= date:
+            match number:
+                case 1:
+                    if (timezone.now()-timedelta(hours=8)).hour > 10:
+                        raise serializers.ValidationError({"number": "Unavailable"})
+                case 2:
+                    if (timezone.now() - timedelta(hours=8)).hour > 21:
+                        raise serializers.ValidationError({"number": "Unavailable"})
+
         shift = Shift.objects.create(**validated_data)
         stats = Stats.objects.create(
             shift=shift

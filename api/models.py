@@ -83,17 +83,24 @@ class Shift(models.Model):
 
     @property
     def passed(self):
-        if (timezone.now() - timedelta(hours=8)).date() >= self.date:
+        if (timezone.now() - timedelta(hours=8)).date() == self.date:
+            match self.number:
+                case 1:
+                    if (timezone.now() - timedelta(hours=8)).hour > 15:
+                        return True
+                case 2:
+                    return False
+        elif (timezone.now() - timedelta(hours=8)).date() > self.date:
             return True
         else:
             return False
 
     @property
     def active(self):
-        if int(((timezone.now()-timedelta(hours=8)).date() - self.date).total_seconds()) == 0:
-            if self.number == 1 and 6 < (timezone.now()-timedelta(hours=8)).hour < 15:
+        if (timezone.now()-timedelta(hours=8)).date() == self.date:
+            if self.number == 1 and 5 < (timezone.now()-timedelta(hours=8)).hour < 15:
                 return True
-            elif self.number == 2 and 17 < (timezone.now()-timedelta(hours=8)).hour < 24:
+            elif self.number == 2 and 16 < (timezone.now()-timedelta(hours=8)).hour < 24:
                 return True
             else:
                 return False

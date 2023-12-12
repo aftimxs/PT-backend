@@ -130,8 +130,9 @@ def calculate_rates_per_hour(start, end, instance, shift, rate, time_change):
     shift.set_rates(rates)
 
 
-def overlap(shift, start, end):
-    orders = Order.objects.filter(shift=shift)
+def overlap(shift, start, end, **kwargs):
+    order_id = kwargs.get('order_id', None)
+    orders = Order.objects.filter(shift=shift).exclude(id=order_id if order_id else None)
     for order in orders:
         for f, s in (([order.start, order.end], [start, end]), ([start, end], [order.start, order.end])):
             for x in (f[0], f[1]):
@@ -141,7 +142,7 @@ def overlap(shift, start, end):
         return False
 
 
-def order_validate(quantity, start, end, shift):
+def order_validate(quantity, start, end, shift, **kwargs):
     if quantity < 1:
         raise serializers.ValidationError({"quantity": "Can't be 0"})
 
@@ -152,20 +153,24 @@ def order_validate(quantity, start, end, shift):
     if start == end:
         raise serializers.ValidationError(
             {"start": "Can't be the same as end", "end": "Can't be the same as start"})
-    if end.hour - start.hour < 1:
-        raise serializers.ValidationError({"start": "Must be before end", "end": "Must be after start"})
 
     match shift.number:
         case 1:
+            if end.hour - start.hour < 1:
+                raise serializers.ValidationError({"start": "Must be before end", "end": "Must be after start"})
             if not time(6, 0) <= start <= time(14, 0):
                 raise serializers.ValidationError({"start": "Value out of range"})
             if not time(7, 0) <= end <= time(15, 0):
                 raise serializers.ValidationError({"end": "Value out of range"})
         case 2:
+            if end.hour == 0:
+                end = time(23, 59)
+            if end.hour - start.hour < 1:
+                raise serializers.ValidationError({"start": "Must be before end", "end": "Must be after start"})
             if not time(17, 0) <= start <= time(23, 0):
                 raise serializers.ValidationError({"start": "Value out of range"})
-            if not time(18, 0) <= end >= time(0, 0):
+            if not time(18, 0) <= end <= time(23, 59):
                 raise serializers.ValidationError({"end": "Value out of range"})
 
-    if overlap(shift, start, end):
+    if overlap(shift, start, end, **kwargs):
         raise serializers.ValidationError({"start": "Overlaps another order", "end": "Overlaps another order"})

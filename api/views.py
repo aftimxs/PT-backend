@@ -109,7 +109,7 @@ class CalendarLookupView(viewsets.ModelViewSet):
                 "{area} {cell} (S:{number})".format(area=shift.line.area, cell=shift.line.cell, number=shift.number),
                 shift.date,
                 True,
-                not shift.passed,
+                not (shift.passed or shift.has_data or shift.active),
                 color(),
                 color(),
                 {'area': shift.line.area, 'cell': shift.line.cell, 'shift': shift}
@@ -254,9 +254,13 @@ class ScrapView(viewsets.ModelViewSet):
     def get_queryset(self):
         queryset = Scrap.objects.all()
         shift = self.request.query_params.get('shift')
+        product = self.request.query_params.get('product')
 
         if shift is not None:
-            queryset = (queryset.filter(shift=shift))
+            if product is not None:
+                queryset = (queryset.filter(shift=shift, product=product))
+            else:
+                queryset = (queryset.filter(shift=shift))
         return queryset
 
     def destroy(self, request, *args, **kwargs):
