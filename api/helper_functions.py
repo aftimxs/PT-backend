@@ -4,7 +4,6 @@ from .models import Product, Order
 from rest_framework import serializers
 
 
-
 def parts_filter(products_request):
     if products_request:
         products_request = products_request.split(',')
@@ -108,10 +107,19 @@ def match_area_rate(area, validated_data, product):
 
 
 def calculate_rates_per_hour(start, end, instance, shift, rate, time_change):
+    # new data
     start_time = datetime.combine(date.today(), start)
-    end_time = datetime.combine(date.today(), end)
+    if end == time(23, 59):
+        end_time = datetime.combine(date.today() + timedelta(days=1), time(0, 0))
+    else:
+        end_time = datetime.combine(date.today(), end)
+
+    # old data
     instance_start_time = datetime.combine(date.today(), instance.start)
-    instance_end_time = datetime.combine(date.today(), instance.end)
+    if instance.end == time(23, 59):
+        instance_end_time = datetime.combine(date.today() + timedelta(days=1), time(0, 0))
+    else:
+        instance_end_time = datetime.combine(date.today(), instance.end)
 
     rates = shift.get_rates()
     hours = (end_time - start_time).total_seconds() / 3600.0
@@ -143,30 +151,29 @@ def overlap(shift, start, end, **kwargs):
 
 
 def order_validate(quantity, start, end, shift, **kwargs):
+    if end.hour == 0:
+        end = time(23, 59)
+
     if quantity < 1:
         raise serializers.ValidationError({"quantity": "Can't be 0"})
 
     if start.minute != 0:
         raise serializers.ValidationError({"start": "Minutes must be 00"})
-    if end.minute != 0:
+    if end != time(23, 59) and end.minute != 0:
         raise serializers.ValidationError({"end": "Minutes must be 00"})
     if start == end:
         raise serializers.ValidationError(
             {"start": "Can't be the same as end", "end": "Can't be the same as start"})
+    if end.hour - start.hour < 1:
+        raise serializers.ValidationError({"start": "Must be before end", "end": "Must be after start"})
 
     match shift.number:
         case 1:
-            if end.hour - start.hour < 1:
-                raise serializers.ValidationError({"start": "Must be before end", "end": "Must be after start"})
             if not time(6, 0) <= start <= time(14, 0):
                 raise serializers.ValidationError({"start": "Value out of range"})
             if not time(7, 0) <= end <= time(15, 0):
                 raise serializers.ValidationError({"end": "Value out of range"})
         case 2:
-            if end.hour == 0:
-                end = time(23, 59)
-            if end.hour - start.hour < 1:
-                raise serializers.ValidationError({"start": "Must be before end", "end": "Must be after start"})
             if not time(17, 0) <= start <= time(23, 0):
                 raise serializers.ValidationError({"start": "Value out of range"})
             if not time(18, 0) <= end <= time(23, 59):

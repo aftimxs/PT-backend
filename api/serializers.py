@@ -5,6 +5,8 @@ from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from rest_framework.validators import UniqueValidator
 from django.contrib.auth.password_validation import validate_password
 
+from datetime import date, datetime, timedelta, time
+
 from .helper_functions import match_area_rate, calculate_rates_per_hour, order_validate
 
 
@@ -37,13 +39,12 @@ class OrderSerializer(serializers.ModelSerializer):
         end = validated_data.get('end')
 
         order_validate(quantity, start, end, shift)
-
         validated_data = match_area_rate(line.area, validated_data, product)
 
         # get the rates for each hour
         start_time = datetime.combine(date.today(), start)
         if end.hour == 0:
-            end_time = datetime.combine(date.today()+timedelta(days=1), end)
+            end_time = datetime.combine(date.today() + timedelta(days=1), end)
         else:
             end_time = datetime.combine(date.today(), end)
 
@@ -76,6 +77,9 @@ class OrderSerializer(serializers.ModelSerializer):
             shift.set_items(x)
         else:
             shift.set_items([product.part_num])
+
+        if end.hour == 0:
+            validated_data.update(end=time(23, 59))
 
         shift.save()
         order = Order.objects.create(**validated_data)
@@ -113,6 +117,9 @@ class OrderSerializer(serializers.ModelSerializer):
             shift.quantity = shift.quantity + difference
 
         shift.save()
+
+        if end.hour == 0:
+            validated_data.update(end=time(23, 59))
         # list of fields in validated data
         update_fields = [k for k in validated_data]
         # update the data on those fields
@@ -150,7 +157,7 @@ class ScrapSerializer(serializers.ModelSerializer):
         if pieces:
             shift_to_update = Stats.objects.get(shift__scrap__id=scrap_id)
             order_to_update = Stats.objects.get(order__shift__scrap__id=scrap_id, order__start__lte=bar_hour,
-                                                order__end__gt=bar_hour)
+                                                order__end__gte=bar_hour)
             if instance.pieces:
                 difference = pieces - instance.pieces
                 # shift

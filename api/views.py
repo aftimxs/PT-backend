@@ -220,7 +220,10 @@ class OrderView(viewsets.ModelViewSet):
                 end = instance.end
 
                 start_time = datetime.combine(date.today(), start)
-                end_time = datetime.combine(date.today(), end)
+                if end == time(23, 59):
+                    end_time = datetime.combine(date.today() + timedelta(days=1), time(0, 0))
+                else:
+                    end_time = datetime.combine(date.today(), end)
 
                 hours = (end_time - start_time).total_seconds() / 3600.0
 
@@ -274,7 +277,7 @@ class ScrapView(viewsets.ModelViewSet):
 
             if pieces:
                 shift_to_update = Stats.objects.get(shift__id=shift)
-                order_to_update = Stats.objects.get(order__shift__id=shift, order__start__lte=bar_hour, order__end__gt=bar_hour)
+                order_to_update = Stats.objects.get(order__shift__id=shift, order__start__lte=bar_hour, order__end__gte=bar_hour)
 
                 shift_to_update.scrap = shift_to_update.scrap - pieces
                 shift_to_update.bars_scrap = shift_to_update.bars_scrap - pieces
@@ -380,7 +383,7 @@ class MinutesView(generics.ListCreateAPIView):
             hour = request.data['hour']
 
             try:
-                order = Order.objects.get(shift=shift, start__lte=hour, end__gt=hour)
+                order = Order.objects.get(shift=shift, start__lte=hour, end__gte=hour)
             except ObjectDoesNotExist:
                 return Response(data={'Inactive': 'No active order at that time'}, status=status.HTTP_404_NOT_FOUND)
 
@@ -557,7 +560,7 @@ class HourTotalPostView(generics.CreateAPIView):
             end = (datetime.strptime(start, "%H:%M:%S") + timedelta(minutes=59)).time()
 
             try:
-                order = Order.objects.get(shift=shift, start__lte=start, end__gt=end)
+                order = Order.objects.get(shift=shift, start__lte=start, end__gte=end)
             except ObjectDoesNotExist:
                 return Response(data={'Inactive': 'No active order at that time'}, status=status.HTTP_404_NOT_FOUND)
 
