@@ -17,6 +17,35 @@ class ProductSerializer(serializers.ModelSerializer):
 
 
 class StatsSerializer(serializers.ModelSerializer):
+
+    def update(self, instance, validated_data):
+        stats_id = validated_data.get('id', instance.id)
+        order = validated_data.get('order', instance.order)
+        scrap = validated_data.get('scrap')
+
+        if 'scrap' in validated_data and order:
+            if scrap < instance.bars_scrap:
+                raise serializers.ValidationError({"message": f"Invalid amount (min: {instance.bars_scrap})"})
+            if scrap > instance.made:
+                raise serializers.ValidationError({"message": f"Invalid amount (max: {instance.made})"})
+
+            shift_stats = Stats.objects.get(shift__order__stats__id=stats_id)
+            if instance.scrap:
+                difference = scrap - instance.scrap
+                shift_stats.scrap = shift_stats.scrap + difference
+            else:
+                shift_stats.scrap = shift_stats.scrap + scrap
+            shift_stats.save()
+
+        # list of fields in validated data
+        update_fields = [k for k in validated_data]
+        # update the data on those fields
+        for k, v in validated_data.items():
+            setattr(instance, k, v)
+
+        instance.save(update_fields=update_fields)
+        return instance
+
     class Meta:
         model = Stats
         fields = '__all__'
@@ -155,6 +184,9 @@ class ScrapSerializer(serializers.ModelSerializer):
         bar_hour = instance.bar.hour
 
         if pieces:
+            if pieces > instance.bar.parts_made:
+                raise serializers.ValidationError({"message": f"Invalid amount (max: {instance.bar.parts_made})"})
+
             shift_to_update = Stats.objects.get(shift__scrap__id=scrap_id)
             order_to_update = Stats.objects.get(order__shift__scrap__id=scrap_id, order__start__lte=bar_hour,
                                                 order__end__gte=bar_hour)
@@ -500,3 +532,15 @@ class TotalHourSerializer(serializers.Serializer):
     shift = ShiftSerializer(many=False, read_only=True)
     total = serializers.IntegerField()
     hour = serializers.TimeField()
+
+
+class GraphMinutesAxisSerializer(serializers.Serializer):
+    x = serializers.TimeField()
+    y = serializers.FloatField()
+    product = serializers.CharField(max_length=25, allow_null=True)
+
+
+class GraphMinutesSerializer(serializers.Serializer):
+    id = serializers.CharField(max_length=20)
+    color = serializers.CharField(max_length=25)
+    data = GraphMinutesAxisSerializer(many=True, read_only=True)

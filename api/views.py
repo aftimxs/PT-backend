@@ -537,6 +537,36 @@ class MinutesView(generics.ListCreateAPIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
+class MinutesForGraphView(generics.ListAPIView):
+    # permission_classes = ([IsAuthenticated])
+
+    def get_queryset(self):
+        queryset = ProductionInfo.objects.all().order_by('minute')
+        shift = self.request.query_params.get('shift')
+
+        if shift:
+            queryset = queryset.filter(shift__id=shift)
+            return queryset
+        else:
+            raise serializers.ValidationError({"error": "Shift required"})
+
+    def get(self, request, *args, **kwargs):
+        queryset = self.get_queryset()
+
+        shift = self.request.query_params.get('shift')
+        orders = Order.objects.filter(shift__id=shift)
+
+        info = [{'id': 'minutes', 'color': "#ffffff", 'data': []},
+                {'id': 'reference', 'color': "#ffb74d", 'data': []}]
+        for minute_info in queryset:
+            info[0]['data'].append({'x': minute_info.minute, 'y': minute_info.item_count})
+            for order in orders:
+                if order.start <= minute_info.hour < order.end:
+                    info[1]['data'].append({'x': minute_info.minute, 'y': round(order.rate/60.0, 2), 'product': order.product.part_num})
+
+        return Response(GraphMinutesSerializer(info, many=True).data)
+
+
 class BarCommentsView(viewsets.ModelViewSet):
     queryset = BarComments.objects.all()
     serializer_class = BarCommentsSerializer
