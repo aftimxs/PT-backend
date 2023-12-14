@@ -16,13 +16,13 @@ def determine_period(period, area, queryset):
     today = (timezone.now() - timedelta(hours=8)).date()
     match period:
         case 'today':
-            queryset = (queryset.filter(line__area=area, date=today))
+            queryset = (queryset.filter(line__area=area, shift__date=today))
         case '7days':
-            queryset = (queryset.filter(line__area=area, date__range=[today - timedelta(days=7), today]))
+            queryset = (queryset.filter(line__area=area, shift__date__range=[today - timedelta(days=7), today]))
         case '30days':
-            queryset = (queryset.filter(line__area=area, date__range=[today - timedelta(days=30), today]))
+            queryset = (queryset.filter(line__area=area, shift__date__range=[today - timedelta(days=30), today]))
         case '60days':
-            queryset = (queryset.filter(line__area=area, date__range=[today - timedelta(days=60), today]))
+            queryset = (queryset.filter(line__area=area, shift__date__range=[today - timedelta(days=60), today]))
     return queryset
 
 
@@ -70,24 +70,25 @@ def array_vs_queryset(period_type, period_range, queryset, additive):
     for array_item in array:
         for queryset_item in queryset:
             if (
-                queryset_item.date if period_type == 'day'
-                else int(queryset_item.date.isocalendar().week) if period_type == 'week'
-                else queryset_item.date.month
+                queryset_item.shift.date if period_type == 'day'
+                else int(queryset_item.shift.date.isocalendar().week) if period_type == 'week'
+                else queryset_item.shift.date.month
                 ) == list(array_item.values())[0]:
-                good = list(array_item.values())[1] + queryset_item.total_parts + prev_item_count
-                bad = list(array_item.values())[2] + queryset_item.total_scrap + prev_scrap_count
+                stats = queryset_item.stats.all()[0]
+                good = array_item['good'] + stats.made + prev_item_count
+                bad = array_item['scrap'] + stats.scrap + prev_scrap_count
                 array_item.update({'good': good, 'scrap': bad, 'good_percentage': round(good / (good + bad), 2)})
 
         if additive == 'True':
             if prev_item_count or prev_scrap_count:
-                if list(array_item.values())[1] == 0:
+                if array_item['good'] == 0:
                     array_item.update({'good': prev_item_count})
-                if list(array_item.values())[2] == 0:
+                if array_item['scrap'] == 0:
                     array_item.update({'scrap': prev_scrap_count})
                 array_item.update({'good_percentage': round(prev_item_count / (prev_item_count + prev_scrap_count), 2)})
 
-            prev_item_count = list(array_item.values())[1]
-            prev_scrap_count = list(array_item.values())[2]
+            prev_item_count = array_item['good']
+            prev_scrap_count = array_item['scrap']
 
     return array
 

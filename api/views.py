@@ -157,6 +157,39 @@ class CalendarDayLookupView(viewsets.ModelViewSet):
         return Response(CalendarDayShiftSerializer(shifts, many=True).data)
 
 
+class CalendarLineLookupView(generics.ListAPIView):
+    serializer_class = CalendarLineSerializer
+    # permission_classes = ([IsAuthenticated])
+
+    def get_queryset(self):
+        queryset = Shift.objects.all()
+        line = self.request.query_params.get('line')
+        area = self.request.query_params.get('area')
+        month = datetime.strptime(self.request.query_params.get('date'), '%Y-%m-%d').month
+
+        if line != 'undefined' and month:
+            queryset = queryset.filter(line__id=line, date__month=month)
+        elif area != 'undefined' and month:
+            if area == 'All':
+                queryset = queryset.filter(date__month=month)
+            else:
+                queryset = queryset.filter(line__area=area, date__month=month)
+        else:
+            raise serializers.ValidationError({"error": "Line and date required"})
+
+        return queryset
+
+    def get(self, request, *args, **kwargs):
+        queryset = self.get_queryset()
+
+        x = {'days': []}
+        for shift in queryset:
+            x['days'].append(shift.date)
+
+        serializer = CalendarLineSerializer(x, many=False)
+        return Response(serializer.data)
+
+
 class MachineView(viewsets.ModelViewSet):
     serializer_class = MachineSerializer
     permission_classes = ([IsAuthenticated])
@@ -648,13 +681,13 @@ class ProductStatisticsView(generics.ListAPIView):
     # permission_classes = ([IsAuthenticated])
 
     def get_queryset(self):
-        queryset = Shift.objects.all()
+        queryset = Order.objects.all()
         period = self.request.query_params.get('period')
         area = self.request.query_params.get('area')
 
         if period is not None and area is not None:
             queryset = determine_period(period, area, queryset)
-            return queryset.exclude(total_parts__exact=0)
+            return queryset.exclude(stats__made__exact=0)
 
     def get(self, request, *args, **kwargs):
         queryset = self.get_queryset()
@@ -685,10 +718,11 @@ class ProductStatisticsView(generics.ListAPIView):
                                 products = [{'product_id': product.id, 'product': product.part_num, 'good': 0,
                                              'scrap': 0, 'good_percentage': 0} for product in products_queryset]
                                 for product in products:
-                                    for shift in queryset:
-                                        if shift.order.values()[0]['product_id'] in product.values():
-                                            good = list(product.values())[2] + shift.total_parts
-                                            bad = list(product.values())[3] + shift.total_scrap
+                                    for order in queryset:
+                                        if order.product.id == product['product_id']:
+                                            stats = order.stats.all()[0]
+                                            good = product['good'] + stats.made
+                                            bad = product['scrap'] + stats.scrap
                                             product.update({'good': good, 'scrap': bad,
                                                             'good_percentage': round(good/(good+bad), 2)})
 
@@ -704,9 +738,10 @@ class ProductStatisticsView(generics.ListAPIView):
                             case 'accumulated-total':
                                 count = [{'product': 'All', 'good': 0, 'scrap': 0, 'good_percentage': 0}]
                                 for x in count:
-                                    for shift in queryset:
-                                        good = list(x.values())[1] + shift.total_parts
-                                        bad = list(x.values())[2] + shift.total_scrap
+                                    for order in queryset:
+                                        stats = order.stats.all()[0]
+                                        good = x['good'] + stats.made
+                                        bad = x['scrap'] + stats.scrap
                                         x.update({'good': good, 'scrap': bad, 'good_percentage': round(good/(good+bad), 2)})
 
                                 extras = {'keys': ['good', 'scrap'], 'index_by': ['product'], 'legend_x': 'Product',
@@ -776,9 +811,9 @@ class ProductStatisticsView(generics.ListAPIView):
 
                                 products = [{'product_id': product.id, 'product': product.part_num, 'runs': 0} for product in products_queryset]
                                 for product in products:
-                                    for shift in queryset:
-                                        if shift.order.values()[0]['product_id'] == list(product.values())[0]:
-                                            product.update({'runs': list(product.values())[2] + 1})
+                                    for order in queryset:
+                                        if order.product.id == product['product_id']:
+                                            product.update({'runs': product['runs'] + 1})
 
                                 extras = {'keys': ['runs'], 'index_by': ['product'], 'legend_x': 'Runs', 'legend_y': 'Count',
                                           'color': ['#0288d1'], 'title': f'{area.upper()} total runs',
@@ -815,10 +850,11 @@ class ProductStatisticsView(generics.ListAPIView):
                                     parts = 0
                                     minutes = 0
                                     shift_count = 0
-                                    for shift in queryset:
-                                        if shift.order.values()[0]['product_id'] == list(product.values())[0]:
-                                            parts = parts + (shift.total_parts-shift.total_scrap)
-                                            minutes = minutes + shift.active_minutes
+                                    for order in queryset:
+                                        if order.product.id == product['product_id']:
+                                            stats = order.stats.all()[0]
+                                            parts = parts + (stats.made-stats.scrap)
+                                            minutes = minutes + order.active_minutes
                                             shift_count += 1
                                     if parts != 0 and minutes != 0:
                                         product.update({'actual': round(((parts/minutes)*60), 2), 'shift_count': shift_count})

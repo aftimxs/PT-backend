@@ -10,7 +10,7 @@ from rest_framework_simplejwt.views import (
 )
 
 from api.views import (MyTokenObtainPairView, RegisterView, MinutesView, ProductStatisticsView, LineStatisticsView,
-                       HourTotalPostView, MinutesForGraphView)
+                       HourTotalPostView, MinutesForGraphView, CalendarLineLookupView)
 
 
 router = routers.DefaultRouter()
@@ -40,5 +40,6 @@ urlpatterns = [
     path('hour-post/', HourTotalPostView.as_view(), name='hour-post'),
     path('statistics/products', ProductStatisticsView.as_view(), name='products-stats'),
     path('statistics/lines', LineStatisticsView.as_view(), name='line-stats'),
-    path('graph-minutes', MinutesForGraphView.as_view(), name='graph-minutes')
+    path('graph-minutes', MinutesForGraphView.as_view(), name='graph-minutes'),
+    path('calendar-line', CalendarLineLookupView.as_view(), name='line-calendar'),
 ] + static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)

@@ -462,6 +462,10 @@ class CalendarDayShiftSerializer(serializers.Serializer):
     shift = ShiftOnlyOrderSerializer(many=False, read_only=True)
 
 
+class CalendarLineSerializer(serializers.Serializer):
+    days = serializers.ListField(child=serializers.CharField(max_length=20))
+
+
 class ChartsExtraInfoSerializer(serializers.Serializer):
     keys = serializers.ListField(child=serializers.CharField(max_length=30))
     index_by = serializers.ListField(child=serializers.CharField(max_length=30))

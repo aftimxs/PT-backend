@@ -152,6 +152,15 @@ class Order(models.Model):
         else:
             return False
 
+    @property
+    def active_minutes(self):
+        total = 0
+        for bar in self.shift.timelineBar.filter(hour__gte=self.start, hour__lte=self.end):
+            if bar.type == 1 or bar.type == 2:
+                total = total + (((datetime.combine(date.today(), bar.end_time) -
+                                   datetime.combine(date.today(), bar.start_time)).total_seconds() / 60.0) + 1)
+        return total
+
 
 class Stats(models.Model):
     shift = models.ForeignKey(Shift, related_name='stats', null=True, on_delete=models.CASCADE)
