@@ -541,7 +541,6 @@ class TotalHourSerializer(serializers.Serializer):
 class GraphMinutesAxisSerializer(serializers.Serializer):
     x = serializers.TimeField()
     y = serializers.FloatField()
-    product = serializers.CharField(max_length=25, allow_null=True)
 
 
 class GraphMinutesSerializer(serializers.Serializer):

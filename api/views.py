@@ -589,13 +589,18 @@ class MinutesForGraphView(generics.ListAPIView):
         shift = self.request.query_params.get('shift')
         orders = Order.objects.filter(shift__id=shift)
 
-        info = [{'id': 'minutes', 'color': "#ffffff", 'data': []},
-                {'id': 'reference', 'color': "#ffb74d", 'data': []}]
-        for minute_info in queryset:
-            info[0]['data'].append({'x': minute_info.minute, 'y': minute_info.item_count})
-            for order in orders:
+        info = [{'id': 'reference', 'color': "#ffb74d", 'data': []}]
+
+        x = 1
+        for order in orders:
+            info.append({'id': None, 'color': "#ffffff", 'data': []})
+            for minute_info in queryset:
                 if order.start <= minute_info.hour < order.end:
-                    info[1]['data'].append({'x': minute_info.minute, 'y': round(order.rate/60.0, 2), 'product': order.product.part_num})
+                    info[x]['data'].append({'x': minute_info.minute, 'y': minute_info.item_count})
+                    info[0]['data'].append({'x': minute_info.minute, 'y': round(order.rate/60.0, 2)})
+                    if info[x]['id'] is None:
+                        info[x]['id'] = order.product.part_num
+            x = x + 1
 
         return Response(GraphMinutesSerializer(info, many=True).data)
 
