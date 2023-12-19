@@ -4,6 +4,7 @@ from django.db import models
 from django.contrib.auth.models import User
 from django.utils import timezone
 from datetime import date, datetime, timedelta
+from .constants import MOLDING_START_S1, MOLDING_END_S1, MOLDING_START_S2, MOLDING_END_S2, PLEATING_START, PLEATING_END, PRODUCTION_START_S1, PRODUCTION_END_S1, PRODUCTION_START_S2, PRODUCTION_END_S2
 
 
 # Create your models here.
@@ -60,8 +61,7 @@ class Shift(models.Model):
 
     items = models.CharField(null=True, max_length=200)
     quantity = models.IntegerField(default=0)
-    rate_per_hour = models.CharField(null=True, max_length=250)
-    reference_line = models.CharField(null=True, max_length=200)
+    rate_per_hour = models.CharField(null=True, max_length=350)
 
     def set_items(self, x):
         self.items = json.dumps(x)
@@ -75,21 +75,27 @@ class Shift(models.Model):
     def get_rates(self):
         return json.loads(self.rate_per_hour)
 
-    def set_reference_line(self, x):
-        self.reference_line = json.dumps(x)
-
-    def get_reference_line(self):
-        return json.loads(self.reference_line)
-
     @property
     def passed(self):
         if (timezone.now() - timedelta(hours=8)).date() == self.date:
-            match self.number:
-                case 1:
-                    if (timezone.now() - timedelta(hours=8)).hour > 15:
+            match self.line.area:
+                case 'Molding':
+                    match self.number:
+                        case 1:
+                            if (timezone.now() - timedelta(hours=8)).hour > MOLDING_END_S1(self).hour:
+                                return True
+                        case 2:
+                            return False
+                case 'Pleating':
+                    if (timezone.now() - timedelta(hours=8)).hour > PLEATING_END(self).hour:
                         return True
-                case 2:
-                    return False
+                case _:
+                    match self.number:
+                        case 1:
+                            if (timezone.now() - timedelta(hours=8)).hour > PRODUCTION_END_S1(self).hour:
+                                return True
+                        case 2:
+                            return False
         elif (timezone.now() - timedelta(hours=8)).date() > self.date:
             return True
         else:
@@ -98,12 +104,26 @@ class Shift(models.Model):
     @property
     def active(self):
         if (timezone.now()-timedelta(hours=8)).date() == self.date:
-            if self.number == 1 and 5 < (timezone.now()-timedelta(hours=8)).hour < 15:
-                return True
-            elif self.number == 2 and 16 < (timezone.now()-timedelta(hours=8)).hour < 24:
-                return True
-            else:
-                return False
+            match self.line.area:
+                case 'Molding':
+                    match self.number:
+                        case 1:
+                            if MOLDING_START_S1(self) <= (timezone.now()-timedelta(hours=8)) <= MOLDING_END_S1(self):
+                                return True
+                        case 2:
+                            if MOLDING_START_S2(self) <= (timezone.now()-timedelta(hours=8)) <= MOLDING_END_S2(self):
+                                return True
+                case 'Pleating':
+                    if PLEATING_START(self) <= (timezone.now() - timedelta(hours=8)) <= PLEATING_END(self):
+                        return True
+                case _:
+                    match self.number:
+                        case 1:
+                            if PRODUCTION_START_S1(self) <= (timezone.now() - timedelta(hours=8)) <= PRODUCTION_END_S1(self):
+                                return True
+                        case 2:
+                            if PRODUCTION_START_S2(self) <= (timezone.now() - timedelta(hours=8)) <= PRODUCTION_END_S2(self):
+                                return True
         else:
             return False
 
@@ -142,8 +162,8 @@ class Order(models.Model):
     line = models.ForeignKey(ProductionLine, related_name='orderL', on_delete=models.CASCADE)
     shift = models.ForeignKey(Shift, related_name='order',  default=0, on_delete=models.CASCADE)
 
-    start = models.TimeField(null=True)
-    end = models.TimeField(null=True)
+    start = models.DateTimeField(null=True)
+    end = models.DateTimeField(null=True)
 
     @property
     def has_data(self):

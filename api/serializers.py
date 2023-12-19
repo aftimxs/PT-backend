@@ -53,7 +53,6 @@ class StatsSerializer(serializers.ModelSerializer):
 
 class OrderSerializer(serializers.ModelSerializer):
     stats = StatsSerializer(many=True, read_only=True)
-
     has_data = serializers.SerializerMethodField()
 
     def get_has_data(self, obj):
@@ -71,30 +70,15 @@ class OrderSerializer(serializers.ModelSerializer):
         validated_data = match_area_rate(line.area, validated_data, product)
 
         # get the rates for each hour
-        start_time = datetime.combine(date.today(), start)
-        if end.hour == 0:
-            end_time = datetime.combine(date.today() + timedelta(days=1), end)
-        else:
-            end_time = datetime.combine(date.today(), end)
-
-        hours = (end_time - start_time).total_seconds() / 3600.0
+        hours = (end - start).total_seconds() / 3600.0
 
         if shift.rate_per_hour:
             rates = shift.get_rates()
         else:
             rates = {}
         for i in range(int(hours)):
-            rates[(start_time + timedelta(hours=i)).strftime('%H:%M:%S')] = validated_data.get('rate')
+            rates[(start + timedelta(hours=i)).strftime('%H:%M:%S')] = validated_data.get('rate')
         shift.set_rates(rates)
-
-        # set ref line
-        if shift.reference_line:
-            ref = shift.get_reference_line()
-        else:
-            ref = []
-        ref.append({'x': start.strftime('%H:%M:%S'), 'y': round(validated_data.get('rate') / 60.0, 2)})
-        ref.append({'x': end.strftime('%H:%M:%S'), 'y': round(validated_data.get('rate') / 60.0, 2)})
-        shift.set_reference_line(ref)
 
         # update shift total quantity
         shift.quantity = shift.quantity + quantity
@@ -106,9 +90,6 @@ class OrderSerializer(serializers.ModelSerializer):
             shift.set_items(x)
         else:
             shift.set_items([product.part_num])
-
-        if end.hour == 0:
-            validated_data.update(end=time(23, 59))
 
         shift.save()
         order = Order.objects.create(**validated_data)
@@ -147,8 +128,8 @@ class OrderSerializer(serializers.ModelSerializer):
 
         shift.save()
 
-        if end.hour == 0:
-            validated_data.update(end=time(23, 59))
+        # if end.hour == 0:
+        #     validated_data.update(end=time(23, 59))
         # list of fields in validated data
         update_fields = [k for k in validated_data]
         # update the data on those fields

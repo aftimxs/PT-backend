@@ -252,16 +252,10 @@ class OrderView(viewsets.ModelViewSet):
                 start = instance.start
                 end = instance.end
 
-                start_time = datetime.combine(date.today(), start)
-                if end == time(23, 59):
-                    end_time = datetime.combine(date.today() + timedelta(days=1), time(0, 0))
-                else:
-                    end_time = datetime.combine(date.today(), end)
-
-                hours = (end_time - start_time).total_seconds() / 3600.0
+                hours = (end - start).total_seconds() / 3600.0
 
                 for i in range(int(hours)):
-                    del rates[(start_time + timedelta(hours=i)).strftime('%H:%M:%S')]
+                    del rates[(start + timedelta(hours=i)).strftime('%H:%M:%S')]
                 instance.shift.set_rates(rates)
 
             instance.shift.save()
@@ -410,23 +404,30 @@ class MinutesView(generics.ListCreateAPIView):
         serializer = self.serializer_class(data=request.data)
         if serializer.is_valid():
             # REQUEST DATA
-            shift = request.data['shift']
+            shift_id = request.data['shift']
             parts = float(request.data['item_count'])
             minute = request.data['minute']
             hour = request.data['hour']
 
+            shift = Shift.objects.get(id=shift_id)
+            hour_dt = datetime.strptime(hour, "%H:%M").time()
+
+            if shift.number == 2 and hour_dt.hour < 7:
+                hour_w_date = datetime.combine(shift.date + timedelta(days=1), hour_dt, tzinfo=timezone.utc)
+            else:
+                hour_w_date = datetime.combine(shift.date, hour_dt, tzinfo=timezone.utc)
+
             try:
-                order = Order.objects.get(shift=shift, start__lte=hour, end__gte=hour)
+                order = Order.objects.get(shift=shift_id, start__lte=hour_w_date, end__gt=hour_w_date)
             except ObjectDoesNotExist:
                 return Response(data={'Inactive': 'No active order at that time'}, status=status.HTTP_404_NOT_FOUND)
 
             stats = Stats.objects.get(order=order)
 
             # DB DATA
-            previous_bar = TimelineBar.objects.filter(shift=shift).values().last()
+            previous_bar = TimelineBar.objects.filter(shift=shift_id).values().last()
             rate = order.rate
             product = order.product.part_num
-            shift_num = getattr(Shift.objects.get(id=shift), 'number')
 
             # DATA FOR BAR TYPE
             minute_rate = rate / 60
@@ -434,39 +435,53 @@ class MinutesView(generics.ListCreateAPIView):
             if previous_bar:
                 prev_type = previous_bar['type']
                 prev_id = previous_bar['id']
-                prev_end_min = previous_bar['end_time']
+                prev_minute = datetime.combine(shift.date, previous_bar['end_time'], tzinfo=timezone.utc)
             else:
                 prev_type = 0
                 prev_id = None
-                if shift_num == 1:
-                    prev_end_min = datetime.strptime("05:59", "%H:%M").time()
-                elif shift_num == 2:
-                    prev_end_min = datetime.strptime("16:59", "%H:%M").time()
 
-            this_minute = datetime.combine(date.today(), datetime.strptime(minute, "%H:%M").time())
-            prev_minute = datetime.combine(date.today(), prev_end_min)
+                match shift.line.area:
+                    case 'Molding':
+                        match shift.number:
+                            case 1:
+                                prev_minute = MOLDING_START_S1(shift) - timedelta(minutes=1)
+                            case 2:
+                                prev_minute = MOLDING_START_S2(shift) - timedelta(minutes=1)
+                    case 'Pleating':
+                        prev_minute = PLEATING_START(shift) - timedelta(minutes=1)
+                    case _:
+                        match shift.number:
+                            case 1:
+                                prev_minute = PRODUCTION_START_S1(shift) - timedelta(minutes=1)
+                            case 2:
+                                prev_minute = PRODUCTION_START_S2(shift) - timedelta(minutes=1)
+
+            if shift.number == 2 and hour_dt.hour < 7:
+                this_minute = datetime.combine(shift.date + timedelta(days=1), datetime.strptime(minute, "%H:%M").time(), tzinfo=timezone.utc)
+            else:
+                this_minute = datetime.combine(shift.date, datetime.strptime(minute, "%H:%M").time(), tzinfo=timezone.utc)
 
             on_time = this_minute == prev_minute + timedelta(minutes=1)
 
             # CREATE NEW BAR
             def new_bar(start, end, current_type, length, part_count, fill):
-                bar_id = start.replace(':', '') + shift
+                bar_id = start.replace(':', '') + shift_id
                 hour = start.split(':')
                 parts_diff = round(part_count-minute_rate, 2)
 
                 new = TimelineBar.objects.create(
                     id=bar_id,
-                    shift=Shift.objects.filter(id=shift)[0],
+                    shift=shift,
                     start_time=start,
                     end_time=end,
                     type=current_type,
                     bar_length=length,
                     parts_made=part_count,
                     hour=hour[0]+':00:00',
-                    loss=parts_diff,
+                    loss=parts_diff if not fill else parts_diff*60,
                     product=product if not fill else None,
                     stats=stats,
-                    shift_stats=Stats.objects.get(shift__id=shift)
+                    shift_stats=Stats.objects.get(shift__id=shift_id)
                 )
                 new.save()
 
@@ -483,7 +498,7 @@ class MinutesView(generics.ListCreateAPIView):
                         parts_made=parts,
                         loss=parts_diff,
                         stats=stats,
-                        shift_stats=Stats.objects.get(shift__id=shift)
+                        shift_stats=Stats.objects.get(shift__id=shift_id)
                     )
 
             def check_rate():
@@ -506,28 +521,41 @@ class MinutesView(generics.ListCreateAPIView):
                         minute=m,
                         item_count=0,
                         line=ProductionLine.objects.filter(id=request.data['line'])[0],
-                        shift=Shift.objects.filter(id=request.data['shift'])[0],
+                        shift=shift,
                     )
                     missing_minute.save()
 
             def determine_fill_bars(beginning, ending):
+                print(beginning, ending)
                 result = []
 
-                hours = (ending.hour - beginning.hour)
+                days = (ending.date() - beginning.date()).days
+                if days > 0:
+                    # finish this
+                    pre_hours = 24 - beginning.hour
 
-                result.append([beginning, datetime.combine(date.today(),
-                                                           datetime.strptime(str(beginning.hour + 1),
-                                                                             "%H").time()) - timedelta(minutes=1)])
+                    result.append([beginning, datetime.combine(shift.date, time(beginning.hour + 1, 59), tzinfo=timezone.utc)])
 
-                for i in range(1, hours):
-                    result.append(
-                        [datetime.combine(date.today(), datetime.strptime(str(beginning.hour + i), "%H").time()),
-                         datetime.combine(date.today(),
-                                          datetime.strptime(str(beginning.hour + i + 1), "%H").time()) - timedelta(
-                             minutes=1)]
-                    )
 
-                result.append([datetime.combine(date.today(), datetime.strptime(str(ending.hour), "%H").time()), ending])
+
+                    for i in range(0, ending.hour):
+                        result.append([datetime.combine(shift.date + timedelta(days=1), time(0 + i, 0), tzinfo=timezone.utc),
+                                       datetime.combine(shift.date + timedelta(days=1), time(0 + i + 1, 59), tzinfo=timezone.utc)])
+
+                    result.append([datetime.combine(shift.date + timedelta(days=1), time(ending.hour, 0), tzinfo=timezone.utc), ending])
+
+                else:
+                    hours = (ending.hour - beginning.hour)
+
+                    result.append([beginning, datetime.combine(shift.date, datetime.strptime(str(beginning.hour + 1), "%H").time(), tzinfo=timezone.utc) - timedelta(minutes=1)])
+
+                    for i in range(1, hours):
+                        result.append(
+                            [datetime.combine(shift.date, datetime.strptime(str(beginning.hour + i), "%H").time(), tzinfo=timezone.utc),
+                             datetime.combine(shift.date, datetime.strptime(str(beginning.hour + i + 1), "%H").time(), tzinfo=timezone.utc) - timedelta(minutes=1)]
+                        )
+
+                    result.append([datetime.combine(shift.date, datetime.strptime(str(ending.hour), "%H").time(), tzinfo=timezone.utc), ending])
 
                 return result
 
@@ -560,8 +588,8 @@ class MinutesView(generics.ListCreateAPIView):
                 hour=request.data['hour'],
                 minute=request.data['minute'],
                 item_count=request.data['item_count'],
-                line=ProductionLine.objects.filter(id=request.data['line'])[0],
-                shift=Shift.objects.filter(id=request.data['shift'])[0],
+                line=ProductionLine.objects.get(id=request.data['line']),
+                shift=shift,
             )
 
             new_minute.save()
@@ -586,8 +614,9 @@ class MinutesForGraphView(generics.ListAPIView):
     def get(self, request, *args, **kwargs):
         queryset = self.get_queryset()
 
-        shift = self.request.query_params.get('shift')
-        orders = Order.objects.filter(shift__id=shift)
+        shift_id = self.request.query_params.get('shift')
+        shift = Shift.objects.get(id=shift_id)
+        orders = Order.objects.filter(shift__id=shift_id)
 
         info = [{'id': 'reference', 'color': "#ffb74d", 'data': []}]
 
@@ -595,7 +624,7 @@ class MinutesForGraphView(generics.ListAPIView):
         for order in orders:
             info.append({'id': None, 'color': "#ffffff", 'data': []})
             for minute_info in queryset:
-                if order.start <= minute_info.hour < order.end:
+                if order.start <= datetime.combine(shift.date, minute_info.hour, tzinfo=timezone.utc) < order.end:
                     info[x]['data'].append({'x': minute_info.minute, 'y': minute_info.item_count})
                     info[0]['data'].append({'x': minute_info.minute, 'y': round(order.rate/60.0, 2)})
                     if info[x]['id'] is None:
@@ -619,16 +648,20 @@ class HourTotalPostView(generics.CreateAPIView):
     def post(self, request, *args, **kwargs):
         serializer = self.serializer_class(data=request.data)
         if serializer.is_valid():
-            shift = request.data['shift']
+            shift_id = request.data['shift']
             total = float(request.data['total'])
-            start = request.data['hour']
+            hour = request.data['hour']
 
-            line = ProductionLine.objects.get(shift=shift)
-            f_min = datetime.strptime(start, "%H:%M:%S")
-            end = (datetime.strptime(start, "%H:%M:%S") + timedelta(minutes=59)).time()
+            line = ProductionLine.objects.get(shift=shift_id)
+            shift = Shift.objects.get(id=shift_id)
+
+            f_min = datetime.strptime(hour, "%H:%M:%S")
+
+            start = datetime.combine(shift.date, f_min.time())
+            end = (start + timedelta(minutes=59))
 
             try:
-                order = Order.objects.get(shift=shift, start__lte=start, end__gte=end)
+                order = Order.objects.get(shift=shift_id, start__lte=start, end__gt=end)
             except ObjectDoesNotExist:
                 return Response(data={'Inactive': 'No active order at that time'}, status=status.HTTP_404_NOT_FOUND)
 
@@ -638,24 +671,24 @@ class HourTotalPostView(generics.CreateAPIView):
 
             # CREATE NEW BAR
             def new_bar(current_type, length):
-                bar_id = start.replace(':', '') + shift
+                bar_id = hour.replace(':', '') + shift_id
                 parts_diff = round(total - rate, 2)
 
                 create_missing_minutes(f_min)
 
                 new = TimelineBar.objects.create(
                     id=bar_id,
-                    shift=Shift.objects.get(id=shift),
-                    start_time=start,
+                    shift=shift,
+                    start_time=hour,
                     end_time=end,
                     type=current_type,
                     bar_length=length,
                     parts_made=total,
-                    hour=start,
+                    hour=hour,
                     loss=parts_diff,
                     product=product,
                     stats=stats,
-                    shift_stats=Stats.objects.get(shift__id=shift)
+                    shift_stats=Stats.objects.get(shift__id=shift_id)
                 )
                 new.save()
 
@@ -667,7 +700,7 @@ class HourTotalPostView(generics.CreateAPIView):
                         minute=m,
                         item_count=round(total/60.0, 2),
                         line=line,
-                        shift=Shift.objects.get(id=request.data['shift']),
+                        shift=shift,
                     )
                     missing_minute.save()
 
