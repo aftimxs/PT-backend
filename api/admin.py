@@ -39,7 +39,7 @@ class SpeedlossAdmin(admin.ModelAdmin):
 
 
 class ProductionInfoAdmin(admin.ModelAdmin):
-    list_display = ('id', 'hour', 'minute', 'item_count', 'line', 'shift')
+    list_display = ('id', 'hour', 'minute', 'item_count', 'date', 'line', 'shift')
 
 
 class TimelineBarAdmin(admin.ModelAdmin):

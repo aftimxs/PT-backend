@@ -11,7 +11,8 @@ from django.contrib.auth.models import User
 from django.shortcuts import get_object_or_404
 
 from .serializers import *
-from .helper_functions import determine_period, get_period_days, parts_filter, array_vs_queryset
+from .helper_functions import (determine_period, get_period_days, parts_filter, array_vs_queryset, new_bar,
+                               calculate_length, create_missing_minutes, check_color, determine_fill_bars)
 
 
 # Create your views here.
@@ -298,13 +299,14 @@ class ScrapView(viewsets.ModelViewSet):
             scrap_id = request.data['id']
             pieces = request.data['pieces']
             shift = request.data['shift']
-            bar = request.data['bar']
+            bar_id = request.data['bar']
 
-            bar_hour = TimelineBar.objects.get(id=bar).hour
+            bar = TimelineBar.objects.get(id=bar_id)
+            bar_dt = datetime.combine(bar.date, bar.hour, tzinfo=timezone.utc)
 
             if pieces:
                 shift_to_update = Stats.objects.get(shift__id=shift)
-                order_to_update = Stats.objects.get(order__shift__id=shift, order__start__lte=bar_hour, order__end__gte=bar_hour)
+                order_to_update = Stats.objects.get(order__shift__id=shift, order__start__lte=bar_dt, order__end__gt=bar_dt)
 
                 shift_to_update.scrap = shift_to_update.scrap - pieces
                 shift_to_update.bars_scrap = shift_to_update.bars_scrap - pieces
@@ -314,7 +316,7 @@ class ScrapView(viewsets.ModelViewSet):
                 shift_to_update.save()
                 order_to_update.save()
 
-            bar_to_update = TimelineBar.objects.get(id=bar)
+            bar_to_update = TimelineBar.objects.get(id=bar_id)
             bar_to_update.has_scrap = False
             bar_to_update.save()
 
@@ -405,12 +407,14 @@ class MinutesView(generics.ListCreateAPIView):
         if serializer.is_valid():
             # REQUEST DATA
             shift_id = request.data['shift']
+            line_id = request.data['line']
             parts = float(request.data['item_count'])
             minute = request.data['minute']
             hour = request.data['hour']
 
             shift = Shift.objects.get(id=shift_id)
-            hour_dt = datetime.strptime(hour, "%H:%M").time()
+            line = ProductionLine.objects.get(id=line_id)
+            hour_dt = time(hour=int(hour.split(':')[0]), minute=0)
 
             if shift.number == 2 and hour_dt.hour < 7:
                 hour_w_date = datetime.combine(shift.date + timedelta(days=1), hour_dt, tzinfo=timezone.utc)
@@ -425,7 +429,7 @@ class MinutesView(generics.ListCreateAPIView):
             stats = Stats.objects.get(order=order)
 
             # DB DATA
-            previous_bar = TimelineBar.objects.filter(shift=shift_id).values().last()
+            previous_bar = TimelineBar.objects.filter(shift=shift_id).order_by('date').values().last()
             rate = order.rate
             product = order.product.part_num
 
@@ -435,7 +439,7 @@ class MinutesView(generics.ListCreateAPIView):
             if previous_bar:
                 prev_type = previous_bar['type']
                 prev_id = previous_bar['id']
-                prev_minute = datetime.combine(shift.date, previous_bar['end_time'], tzinfo=timezone.utc)
+                prev_minute = datetime.combine(previous_bar['date'], previous_bar['end_time'], tzinfo=timezone.utc)
             else:
                 prev_type = 0
                 prev_id = None
@@ -463,104 +467,8 @@ class MinutesView(generics.ListCreateAPIView):
 
             on_time = this_minute == prev_minute + timedelta(minutes=1)
 
-            # CREATE NEW BAR
-            def new_bar(start, end, current_type, length, part_count, fill):
-                bar_id = start.replace(':', '') + shift_id
-                hour = start.split(':')
-                parts_diff = round(part_count-minute_rate, 2)
-
-                new = TimelineBar.objects.create(
-                    id=bar_id,
-                    shift=shift,
-                    start_time=start,
-                    end_time=end,
-                    type=current_type,
-                    bar_length=length,
-                    parts_made=part_count,
-                    hour=hour[0]+':00:00',
-                    loss=parts_diff if not fill else parts_diff*60,
-                    product=product if not fill else None,
-                    stats=stats,
-                    shift_stats=Stats.objects.get(shift__id=shift_id)
-                )
-                new.save()
-
-            def check_color(current_type):
-                if current_type != prev_type or this_minute.hour != prev_minute.hour or not on_time:
-                    new_bar(minute, minute, current_type, 1, parts, False)
-                else:
-                    parts_diff = parts - minute_rate
-
-                    TimelineBar.objects.update(
-                        bar=TimelineBar.objects.get(id=prev_id),
-                        type=current_type,
-                        end_time=minute,
-                        parts_made=parts,
-                        loss=parts_diff,
-                        stats=stats,
-                        shift_stats=Stats.objects.get(shift__id=shift_id)
-                    )
-
-            def check_rate():
-                if parts >= minute_rate:
-                    check_color(1)
-                elif minute_rate > parts > 0:
-                    check_color(2)
-                elif parts == 0:
-                    check_color(3)
-
-            def calculate_length(end, start):
-                return ((end - start).total_seconds() / 60.0) + 1
-
-            def create_missing_minutes(first_min, last_min):
-                minutes = calculate_length(last_min, first_min)
-                for i in range(int(minutes)):
-                    m = first_min + timedelta(minutes=i)
-                    missing_minute = ProductionInfo.objects.create(
-                        hour=datetime.strptime(str(m.hour), "%H").time(),
-                        minute=m,
-                        item_count=0,
-                        line=ProductionLine.objects.filter(id=request.data['line'])[0],
-                        shift=shift,
-                    )
-                    missing_minute.save()
-
-            def determine_fill_bars(beginning, ending):
-                print(beginning, ending)
-                result = []
-
-                days = (ending.date() - beginning.date()).days
-                if days > 0:
-                    # finish this
-                    pre_hours = 24 - beginning.hour
-
-                    result.append([beginning, datetime.combine(shift.date, time(beginning.hour + 1, 59), tzinfo=timezone.utc)])
-
-
-
-                    for i in range(0, ending.hour):
-                        result.append([datetime.combine(shift.date + timedelta(days=1), time(0 + i, 0), tzinfo=timezone.utc),
-                                       datetime.combine(shift.date + timedelta(days=1), time(0 + i + 1, 59), tzinfo=timezone.utc)])
-
-                    result.append([datetime.combine(shift.date + timedelta(days=1), time(ending.hour, 0), tzinfo=timezone.utc), ending])
-
-                else:
-                    hours = (ending.hour - beginning.hour)
-
-                    result.append([beginning, datetime.combine(shift.date, datetime.strptime(str(beginning.hour + 1), "%H").time(), tzinfo=timezone.utc) - timedelta(minutes=1)])
-
-                    for i in range(1, hours):
-                        result.append(
-                            [datetime.combine(shift.date, datetime.strptime(str(beginning.hour + i), "%H").time(), tzinfo=timezone.utc),
-                             datetime.combine(shift.date, datetime.strptime(str(beginning.hour + i + 1), "%H").time(), tzinfo=timezone.utc) - timedelta(minutes=1)]
-                        )
-
-                    result.append([datetime.combine(shift.date, datetime.strptime(str(ending.hour), "%H").time(), tzinfo=timezone.utc), ending])
-
-                return result
-
             if on_time:
-                check_rate()
+                check_color(prev_type, this_minute, prev_minute, True, minute, parts, shift, shift_id, minute_rate, product, stats, prev_id)
             else:
                 # FILL GAP
                 s = prev_minute + timedelta(minutes=1)
@@ -568,30 +476,31 @@ class MinutesView(generics.ListCreateAPIView):
 
                 # CHECK IF IT SPANS MULTIPLE HOURS
                 if s.hour != e.hour:
-                    fill_bars = determine_fill_bars(s, e)
-
+                    fill_bars = determine_fill_bars(beginning=s, ending=e, shift=shift)
+                    # filler bars
                     for bar in fill_bars:
-                        long = calculate_length(bar[1], bar[0])
-                        new_bar(bar[0].strftime("%H:%M"), bar[1].strftime("%H:%M"), 4, long, 0, True)
-
+                        long = calculate_length(end=bar[1], start=bar[0])
+                        new_bar(bar[0].strftime("%H:%M"), bar[1].strftime("%H:%M"), bar[0].date(), 4, long, 0, True, shift, shift_id, minute_rate, product, stats)
                 else:
-                    # FILLER BAR
-                    long = calculate_length(e, s)
-                    new_bar(s.strftime("%H:%M"), e.strftime("%H:%M"), 4, long, 0, True)
+                    # filler bar
+                    long = calculate_length(end=e, start=s)
+                    new_bar(s.strftime("%H:%M"), e.strftime("%H:%M"), s.date(), 4, long, 0, True, shift, shift_id, minute_rate, product, stats)
 
-                create_missing_minutes(s, e)
+                # fill minutes gap
+                create_missing_minutes(first_min=s, last_min=e, total=0, shift=shift, line=line)
 
-                # THIS BAR
-                check_rate()
+                # make this posts bar
+                check_color(prev_type, this_minute, prev_minute, False, minute, parts, shift, shift_id, minute_rate, product, stats, prev_id)
 
+            # make this posts minute
             new_minute = ProductionInfo.objects.create(
                 hour=request.data['hour'],
                 minute=request.data['minute'],
                 item_count=request.data['item_count'],
+                date=request.data['date'],
                 line=ProductionLine.objects.get(id=request.data['line']),
                 shift=shift,
             )
-
             new_minute.save()
 
             return Response(serializer.data, status=status.HTTP_201_CREATED)
@@ -602,7 +511,7 @@ class MinutesForGraphView(generics.ListAPIView):
     # permission_classes = ([IsAuthenticated])
 
     def get_queryset(self):
-        queryset = ProductionInfo.objects.all().order_by('minute')
+        queryset = ProductionInfo.objects.all().order_by('date', 'minute')
         shift = self.request.query_params.get('shift')
 
         if shift:
@@ -615,7 +524,6 @@ class MinutesForGraphView(generics.ListAPIView):
         queryset = self.get_queryset()
 
         shift_id = self.request.query_params.get('shift')
-        shift = Shift.objects.get(id=shift_id)
         orders = Order.objects.filter(shift__id=shift_id)
 
         info = [{'id': 'reference', 'color': "#ffb74d", 'data': []}]
@@ -624,9 +532,10 @@ class MinutesForGraphView(generics.ListAPIView):
         for order in orders:
             info.append({'id': None, 'color': "#ffffff", 'data': []})
             for minute_info in queryset:
-                if order.start <= datetime.combine(shift.date, minute_info.hour, tzinfo=timezone.utc) < order.end:
-                    info[x]['data'].append({'x': minute_info.minute, 'y': minute_info.item_count})
-                    info[0]['data'].append({'x': minute_info.minute, 'y': round(order.rate/60.0, 2)})
+                minute_dt = datetime.combine(minute_info.date, minute_info.minute, tzinfo=timezone.utc)
+                if order.start <= minute_dt < order.end:
+                    info[x]['data'].append({'x': minute_dt, 'y': minute_info.item_count})
+                    info[0]['data'].append({'x': minute_dt, 'y': round(order.rate/60.0, 2)})
                     if info[x]['id'] is None:
                         info[x]['id'] = order.product.part_num
             x = x + 1
@@ -657,7 +566,10 @@ class HourTotalPostView(generics.CreateAPIView):
 
             f_min = datetime.strptime(hour, "%H:%M:%S")
 
-            start = datetime.combine(shift.date, f_min.time())
+            if shift.number == 2 and f_min.hour < 7:
+                start = datetime.combine(shift.date + timedelta(days=1), f_min.time(), tzinfo=timezone.utc)
+            else:
+                start = datetime.combine(shift.date, f_min.time(), tzinfo=timezone.utc)
             end = (start + timedelta(minutes=59))
 
             try:
@@ -669,47 +581,17 @@ class HourTotalPostView(generics.CreateAPIView):
             product = order.product.part_num
             stats = Stats.objects.get(order=order)
 
-            # CREATE NEW BAR
-            def new_bar(current_type, length):
-                bar_id = hour.replace(':', '') + shift_id
-                parts_diff = round(total - rate, 2)
-
-                create_missing_minutes(f_min)
-
-                new = TimelineBar.objects.create(
-                    id=bar_id,
-                    shift=shift,
-                    start_time=hour,
-                    end_time=end,
-                    type=current_type,
-                    bar_length=length,
-                    parts_made=total,
-                    hour=hour,
-                    loss=parts_diff,
-                    product=product,
-                    stats=stats,
-                    shift_stats=Stats.objects.get(shift__id=shift_id)
-                )
-                new.save()
-
-            def create_missing_minutes(first_min):
-                for i in range(int(60)):
-                    m = first_min + timedelta(minutes=i)
-                    missing_minute = ProductionInfo.objects.create(
-                        hour=datetime.strptime(str(m.hour), "%H").time(),
-                        minute=m,
-                        item_count=round(total/60.0, 2),
-                        line=line,
-                        shift=shift,
-                    )
-                    missing_minute.save()
-
             if total >= rate:
-                new_bar(1, 60)
+                new_bar(start=hour, end=end, bar_date=start.date(), current_type=1, length=60, part_count=total, fill=False, shift=shift,
+                        shift_id=shift_id, rate=rate, product=product, stats=stats)
             elif rate > total > 0:
-                new_bar(2, 60)
+                new_bar(start=hour, end=end, bar_date=start.date(), current_type=2, length=60, part_count=total, fill=False, shift=shift,
+                        shift_id=shift_id, rate=rate, product=product, stats=stats)
             elif total == 0:
-                new_bar(3, 60)
+                new_bar(start=hour, end=end, bar_date=start.date(), current_type=3, length=60, part_count=total, fill=False, shift=shift,
+                        shift_id=shift_id, rate=rate, product=product, stats=stats)
+
+            create_missing_minutes(first_min=start, last_min=end, total=total, shift=shift, line=line)
 
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)

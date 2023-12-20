@@ -175,7 +175,7 @@ class Order(models.Model):
     @property
     def active_minutes(self):
         total = 0
-        for bar in self.shift.timelineBar.filter(hour__gte=self.start, hour__lte=self.end):
+        for bar in self.shift.timelineBar.filter(hour__gte=self.start, hour__lt=self.end, date__gte=self.start.date(), date__lte=self.end.date()):
             if bar.type == 1 or bar.type == 2:
                 total = total + (((datetime.combine(date.today(), bar.end_time) -
                                    datetime.combine(date.today(), bar.start_time)).total_seconds() / 60.0) + 1)
@@ -281,6 +281,7 @@ class TimelineBar(models.Model):
     shift = models.ForeignKey(Shift, related_name='timelineBar', on_delete=models.CASCADE)
     start_time = models.TimeField()
     end_time = models.TimeField()
+    date = models.DateField(default=timezone.now())
     type = models.IntegerField(choices=bar_type)
     bar_length = models.IntegerField()
     parts_made = models.FloatField()
@@ -299,6 +300,7 @@ class ProductionInfo(models.Model):
     hour = models.TimeField(null=True)
     minute = models.TimeField()
     item_count = models.FloatField()
+    date = models.DateField(default=timezone.now())
     line = models.ForeignKey(ProductionLine, related_name='info', default=0, on_delete=models.CASCADE)
     shift = models.ForeignKey(Shift, related_name='info',  default=0, on_delete=models.CASCADE)
     timeline_bar = models.ForeignKey(TimelineBar, related_name='minutes', null=True, on_delete=models.CASCADE)

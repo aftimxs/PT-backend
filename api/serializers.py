@@ -92,6 +92,7 @@ class OrderSerializer(serializers.ModelSerializer):
             shift.set_items([product.part_num])
 
         shift.save()
+
         order = Order.objects.create(**validated_data)
         stats = Stats.objects.create(
             order=order
@@ -162,15 +163,15 @@ class ScrapSerializer(serializers.ModelSerializer):
         scrap_id = validated_data.get('id')
         pieces = validated_data.get('pieces')
 
-        bar_hour = instance.bar.hour
+        bar_dt = datetime.combine(instance.bar.date, instance.bar.hour, tzinfo=timezone.utc)
 
         if pieces:
             if pieces > instance.bar.parts_made:
                 raise serializers.ValidationError({"message": f"Invalid amount (max: {instance.bar.parts_made})"})
 
             shift_to_update = Stats.objects.get(shift__scrap__id=scrap_id)
-            order_to_update = Stats.objects.get(order__shift__scrap__id=scrap_id, order__start__lte=bar_hour,
-                                                order__end__gte=bar_hour)
+            order_to_update = Stats.objects.get(order__shift__scrap__id=scrap_id, order__start__lte=bar_dt,
+                                                order__end__gt=bar_dt)
             if instance.pieces:
                 difference = pieces - instance.pieces
                 # shift
@@ -520,7 +521,7 @@ class TotalHourSerializer(serializers.Serializer):
 
 
 class GraphMinutesAxisSerializer(serializers.Serializer):
-    x = serializers.TimeField()
+    x = serializers.DateTimeField()
     y = serializers.FloatField()
 
 

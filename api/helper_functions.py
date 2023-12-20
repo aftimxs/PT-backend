@@ -1,6 +1,6 @@
 from datetime import date, datetime, timedelta, time
 from django.utils import timezone
-from .models import Product, Order
+from .models import Product, Order, TimelineBar, Stats, ProductionInfo, ProductionLine
 from .constants import MOLDING_START_S1, MOLDING_END_S1, MOLDING_START_S2, MOLDING_END_S2, PLEATING_START, PLEATING_END, PRODUCTION_START_S1, PRODUCTION_END_S1, PRODUCTION_START_S2, PRODUCTION_END_S2
 from rest_framework import serializers
 
@@ -184,3 +184,83 @@ def order_validate(quantity, start, end, shift, **kwargs):
         raise serializers.ValidationError({"start": "Overlaps another order", "end": "Overlaps another order"})
 
 
+def new_bar(start, end, bar_date, current_type, length, part_count, fill, shift, shift_id, rate, product, stats):
+    bar_id = start.replace(':', '') + shift_id
+    hour = start.split(':')
+    parts_diff = round(part_count - rate, 2)
+
+    new = TimelineBar.objects.create(
+        id=bar_id,
+        shift=shift,
+        start_time=start,
+        end_time=end,
+        date=bar_date,
+        type=current_type,
+        bar_length=length,
+        parts_made=part_count,
+        hour=hour[0] + ':00:00',
+        loss=parts_diff if not fill else parts_diff * 60,
+        product=product if not fill else None,
+        stats=stats,
+        shift_stats=Stats.objects.get(shift__id=shift_id)
+    )
+    new.save()
+
+
+def calculate_length(end, start):
+    return ((end - start).total_seconds() / 60.0) + 1
+
+
+def create_missing_minutes(first_min, last_min, total, shift, line):
+    minutes = calculate_length(last_min, first_min)
+    for i in range(int(minutes)):
+        m = first_min + timedelta(minutes=i)
+        missing_minute = ProductionInfo.objects.create(
+            hour=datetime.strptime(str(m.hour), "%H").time(),
+            minute=m,
+            item_count=round(total / 60.0, 2) if total else 0,
+            date=m.date(),
+            line=line,
+            shift=shift,
+        )
+        missing_minute.save()
+
+
+def check_color(prev_type, this_minute, prev_minute, on_time, minute, parts, shift, shift_id, rate, product, stats, prev_id):
+
+    if parts >= rate:
+        current_type = 1
+    elif rate > parts > 0:
+        current_type = 2
+    elif parts == 0:
+        current_type = 3
+
+    if current_type != prev_type or this_minute.hour != prev_minute.hour or not on_time:
+        new_bar(minute, minute, this_minute.date(), current_type, 1, parts, False, shift, shift_id, rate, product, stats)
+    else:
+        parts_diff = parts - rate
+
+        TimelineBar.objects.update(
+            bar=TimelineBar.objects.get(id=prev_id),
+            type=current_type,
+            end_time=minute,
+            parts_made=parts,
+            loss=parts_diff,
+            stats=stats,
+            shift_stats=Stats.objects.get(shift__id=shift_id)
+        )
+
+
+def determine_fill_bars(beginning, ending, shift):
+    result = []
+
+    hours = (((ending - beginning).total_seconds() + 120) / 3600.0)
+    shift_datetime = datetime.combine(shift.date, time(0, 0), tzinfo=timezone.utc)
+
+    result.append([beginning, shift_datetime + timedelta(hours=beginning.hour, minutes=59)])
+    for i in range(1, int(hours)):
+        result.append([shift_datetime + timedelta(hours=beginning.hour + i),
+                       shift_datetime + timedelta(hours=beginning.hour + i, minutes=59)])
+    result.append([shift_datetime + timedelta(hours=beginning.hour + int(hours)), ending])
+
+    return result
