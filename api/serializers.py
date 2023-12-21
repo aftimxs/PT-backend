@@ -67,7 +67,7 @@ class OrderSerializer(serializers.ModelSerializer):
         end_time = validated_data.get('end_time')
 
         validated_data.update(start=datetime.combine(shift.date, start_time, tzinfo=timezone.utc))
-        if shift.number == 2 and end_time.hour < 7 and line.area == 'Welding' or line.area == 'Molding':
+        if shift.number == 2 and end_time.hour < 7 and line.area != 'Pleating':
             validated_data.update(end=datetime.combine(shift.date + timedelta(days=1), end_time, tzinfo=timezone.utc))
         else:
             validated_data.update(end=datetime.combine(shift.date, end_time, tzinfo=timezone.utc))
@@ -118,7 +118,7 @@ class OrderSerializer(serializers.ModelSerializer):
         end_time = validated_data.get('end_time')
 
         validated_data.update(start=datetime.combine(shift.date, start_time, tzinfo=timezone.utc))
-        if shift.number == 2 and end_time.hour < 7 and line.area == 'Welding' or line.area == 'Molding':
+        if shift.number == 2 and end_time.hour < 7 and line.area != 'Pleating':
             validated_data.update(end=datetime.combine(shift.date + timedelta(days=1), end_time, tzinfo=timezone.utc))
         else:
             validated_data.update(end=datetime.combine(shift.date, end_time, tzinfo=timezone.utc))
