@@ -165,6 +165,9 @@ class Order(models.Model):
     start = models.DateTimeField(null=True)
     end = models.DateTimeField(null=True)
 
+    start_time = models.TimeField(null=True)
+    end_time = models.TimeField(null=True)
+
     @property
     def has_data(self):
         if Stats.objects.get(order=self).made != 0:
@@ -281,7 +284,7 @@ class TimelineBar(models.Model):
     shift = models.ForeignKey(Shift, related_name='timelineBar', on_delete=models.CASCADE)
     start_time = models.TimeField()
     end_time = models.TimeField()
-    date = models.DateField(default=timezone.now())
+    date = models.DateField()
     type = models.IntegerField(choices=bar_type)
     bar_length = models.IntegerField()
     parts_made = models.FloatField()
@@ -300,7 +303,7 @@ class ProductionInfo(models.Model):
     hour = models.TimeField(null=True)
     minute = models.TimeField()
     item_count = models.FloatField()
-    date = models.DateField(default=timezone.now())
+    date = models.DateField()
     line = models.ForeignKey(ProductionLine, related_name='info', default=0, on_delete=models.CASCADE)
     shift = models.ForeignKey(Shift, related_name='info',  default=0, on_delete=models.CASCADE)
     timeline_bar = models.ForeignKey(TimelineBar, related_name='minutes', null=True, on_delete=models.CASCADE)
