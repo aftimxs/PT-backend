@@ -1,7 +1,7 @@
 from datetime import date, datetime, timedelta, time
 from django.utils import timezone
 from .models import Product, Order, TimelineBar, Stats, ProductionInfo, ProductionLine
-from .constants import MOLDING_START_S1, MOLDING_END_S1, MOLDING_START_S2, MOLDING_END_S2, PLEATING_START, PLEATING_END, PRODUCTION_START_S1, PRODUCTION_END_S1, PRODUCTION_START_S2, PRODUCTION_END_S2
+from .constants import MOLDING_START_S1, MOLDING_END_S1, MOLDING_START_S2, MOLDING_END_S2, MOLDING_START_S3, MOLDING_END_S3, PLEATING_START, PLEATING_END, PRODUCTION_START_S1, PRODUCTION_END_S1, PRODUCTION_START_S2, PRODUCTION_END_S2
 from rest_framework import serializers
 
 
@@ -170,6 +170,8 @@ def order_validate(quantity, start, end, shift, **kwargs):
                     order_start_end_validate(start, end, MOLDING_START_S1(shift), MOLDING_END_S1(shift))
                 case 2:
                     order_start_end_validate(start, end, MOLDING_START_S2(shift), MOLDING_END_S2(shift))
+                case 3:
+                    order_start_end_validate(start, end, MOLDING_START_S3(shift), MOLDING_END_S3(shift))
         case 'Pleating':
             order_start_end_validate(start, end, PLEATING_START(shift), PLEATING_END(shift))
         case _:

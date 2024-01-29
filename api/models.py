@@ -4,7 +4,8 @@ from django.db import models
 from django.contrib.auth.models import User
 from django.utils import timezone
 from datetime import date, datetime, timedelta
-from .constants import MOLDING_START_S1, MOLDING_END_S1, MOLDING_START_S2, MOLDING_END_S2, PLEATING_START, PLEATING_END, PRODUCTION_START_S1, PRODUCTION_END_S1, PRODUCTION_START_S2, PRODUCTION_END_S2
+from .constants import MOLDING_START_S1, MOLDING_END_S1, MOLDING_START_S2, MOLDING_END_S2, PLEATING_START, PLEATING_END, \
+    PRODUCTION_START_S1, PRODUCTION_END_S1, PRODUCTION_START_S2, PRODUCTION_END_S2, MOLDING_START_S3, MOLDING_END_S3
 
 
 # Create your models here.
@@ -42,7 +43,8 @@ class Shift(models.Model):
 
     number = [
         (1, 'First'),
-        (2, 'Second')
+        (2, 'Second'),
+        (3, 'Third')
     ]
 
     status_options = [
@@ -86,6 +88,9 @@ class Shift(models.Model):
                                 return True
                         case 2:
                             return False
+                        case 3:
+                            if (timezone.now() - timedelta(hours=8)).hour > MOLDING_END_S3(self).hour:
+                                return True
                 case 'Pleating':
                     if (timezone.now() - timedelta(hours=8)).hour > PLEATING_END(self).hour:
                         return True
@@ -112,6 +117,9 @@ class Shift(models.Model):
                                 return True
                         case 2:
                             if MOLDING_START_S2(self) <= (timezone.now()-timedelta(hours=8)) <= MOLDING_END_S2(self):
+                                return True
+                        case 3:
+                            if MOLDING_START_S3(self) <= (timezone.now() - timedelta(hours=8)) <= MOLDING_END_S3(self):
                                 return True
                 case 'Pleating':
                     if PLEATING_START(self) <= (timezone.now() - timedelta(hours=8)) <= PLEATING_END(self):
