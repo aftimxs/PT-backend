@@ -27,7 +27,7 @@ SECRET_KEY = 'django-insecure-)54$1@o7v9e6d+z_uzy_613jbesz%q(-5v9n08!=m1f7bs6=*8
 #####
 DEBUG = False
 
-ALLOWED_HOSTS = ['127.0.0.1', 'pt-backend.azurewebsites.net']
+ALLOWED_HOSTS = ['127.0.0.1', 'agi-pt-backend.azurewebsites.net']
 
 
 # Application definition
@@ -97,10 +97,10 @@ else:
     DATABASES = {
         'default': {
             'ENGINE': 'django.db.backends.mysql',
-            'NAME': 'pt-backend-database',
-            "USER": "yqufmebksl",
-            "PASSWORD": "Bismuth-19",
-            "HOST": "pt-backend-server.mysql.database.azure.com",
+            'NAME': 'agi-pt-backend-database',
+            "USER": "dfnkavleps",
+            "PASSWORD": "5D2SM6YBE862HFS0$",
+            "HOST": "agi-pt-backend-server.mysql.database.azure.com",
             "PORT": "3306",
         }
     }
