@@ -451,8 +451,6 @@ class MinutesView(generics.ListCreateAPIView):
                                 prev_minute = MOLDING_START_S1(shift) - timedelta(minutes=1)
                             case 2:
                                 prev_minute = MOLDING_START_S2(shift) - timedelta(minutes=1)
-                            case 3:
-                                prev_minute = MOLDING_START_S3(shift) - timedelta(minutes=1)
                     case 'Pleating':
                         prev_minute = PLEATING_START(shift) - timedelta(minutes=1)
                     case _:
