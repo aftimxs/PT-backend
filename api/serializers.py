@@ -298,17 +298,17 @@ class ShiftSerializer(serializers.ModelSerializer):
     has_data = serializers.SerializerMethodField()
 
     def create(self, validated_data):
-        number = validated_data.get('number')
-        date = validated_data.get('date')
+        # number = validated_data.get('number')
+        # date = validated_data.get('date')
 
-        if (timezone.now()-timedelta(hours=8)).date() >= date:
-            match number:
-                case 1:
-                    if (timezone.now()-timedelta(hours=8)).hour > 10:
-                        raise serializers.ValidationError({"number": "Unavailable"})
-                case 2:
-                    if (timezone.now() - timedelta(hours=8)).hour > 21:
-                        raise serializers.ValidationError({"number": "Unavailable"})
+        # if (timezone.now()-timedelta(hours=8)).date() >= date:
+        #     match number:
+        #         case 1:
+        #             if (timezone.now()-timedelta(hours=8)).hour > 10:
+        #                 raise serializers.ValidationError({"number": "Unavailable"})
+        #         case 2:
+        #             if (timezone.now() - timedelta(hours=8)).hour > 21:
+        #                 raise serializers.ValidationError({"number": "Unavailable"})
 
         shift = Shift.objects.create(**validated_data)
         stats = Stats.objects.create(
