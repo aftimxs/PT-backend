@@ -429,13 +429,12 @@ class MinutesView(generics.ListCreateAPIView):
             stats = Stats.objects.get(order=order)
 
             # DB DATA
-            previous_bar = TimelineBar.objects.filter(shift=shift_id).order_by('date').values().last()
+            previous_bar = TimelineBar.objects.filter(shift=shift_id).order_by('end_time').values().last()
             rate = order.rate
             product = order.product.part_num
 
             # DATA FOR BAR TYPE
             minute_rate = rate / 60
-
             if previous_bar:
                 prev_type = previous_bar['type']
                 prev_id = previous_bar['id']
